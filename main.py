@@ -1,3 +1,4 @@
+import os
 from keras.models import load_model  # TensorFlow is required for Keras to work
 from streamlit_extras.add_vertical_space import add_vertical_space
 import cv2  # Install opencv-python
@@ -10,15 +11,16 @@ st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
 
 # Sidebar contents
 with st.sidebar:
-    st.title('🤖 Item Detection')
+    st.title('🤖 Mesin pendeteksi ini')
     st.markdown('''
-    ## About
-    This app uses a Keras model to detect items using:
-    - [Streamlit](https://streamlit.io/)
-    - [Teachable Machine](https://teachablemachine.withgoogle.com/)
+    ## Tentang Software
+    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dan menggunakan teknologi:
+    - TensorFlow
+    - Keras
+    - Google Colab
     ''')
     add_vertical_space(3)
-    st.write('This is my linkedin🤗: (https://www.linkedin.com/in/tanviralamsyed/)')
+    st.write('Sosial media saya: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
  
 
     
@@ -27,7 +29,12 @@ def main():
      image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")# this captures the image 
      if image:
         np.set_printoptions(suppress=True)
-        model = load_model("keras_Model.h5", compile=False) # this section loads the  model and labels that are used
+        model_path = "keras_Model.h5"
+        if not os.path.exists(model_path):
+            st.error(f"Model file not found at {model_path}. Please check the file path.")
+            return
+
+        model = load_model(model_path, compile=False) # this section loads the  model and labels that are used
         class_names = open("labels.txt", "r").readlines()
         
         img = Image.open(image) # stores the natural image so that itcan be manipulated
