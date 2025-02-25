@@ -29,6 +29,7 @@ with st.sidebar:
     ''')
     add_vertical_space(3)
     st.write('Sosial media Galuh Adi Insani: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
+    st.write('Datasheet reference: (https://www.kaggle.com/datasets/allandclive/chicken-disease-1)')
 
 @st.cache_resource
 def load_models():
