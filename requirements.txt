@@ -1,8 +1,7 @@
-streamlit-webrtc
 opencv-python-headless
 SciPy
 NumPy
-tensorflow == 2.12.1
+tensorflow
 streamlit
 streamlit-extras
 pillow
