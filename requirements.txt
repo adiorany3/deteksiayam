@@ -8,3 +8,4 @@ streamlit-extras
 pillow
 datetime
 keras
+h5py
