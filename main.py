@@ -29,7 +29,7 @@ def main():
      image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")# this captures the image 
      if image:
         np.set_printoptions(suppress=True)
-        model_path = "keras_Model.h5"
+        model_path = "keras_model.h5"
         if not os.path.exists(model_path):
             st.error(f"Model file not found at {model_path}. Please check the file path.")
             return
