@@ -4,6 +4,7 @@ import cv2  # Install opencv-python
 import numpy as np
 import streamlit as st
 from PIL import Image
+import datetime
 
 st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
 
@@ -48,13 +49,13 @@ def main():
             if index == 0:
                 st.subheader("Sehat")
                 st.write("Kotoran ayam yang sehat memiliki ciri-ciri tertentu yang mencerminkan kesehatan pencernaan dan kondisi ayam secara keseluruhan.")
-            if index == 1:
+            elif index == 1:
                 st.subheader("NCD")
                 st.write("Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin..")
-            if index ==  2:
+            elif index ==  2:
                 st.subheader("Koksidiosis")
                 st.write("Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.")
-            if index == 3:
+            elif index == 3:
                 st.subheader("Salmonela")
                 st.write("Infeksi bakteri yang dapat menyebabkan gangguan pencernaan. Gejala: Diare, kotoran berwarna hijau atau kuning, penurunan nafsu makan, dan demam. Pencegahan: Menjaga kebersihan kandang dan pakan, pemberian antibiotik jika diperlukan.")
             print("Class:", class_name[2:], end="")
@@ -64,11 +65,12 @@ def main():
 
 
 if __name__ == '__main__':
+    current_year = datetime.datetime.now().year
     main()
 
-# Footer
-st.markdown(f"""
-<div style="text-align: center; padding-top: 20px;">
-    © {current_year} Developed by: Galuh Adi Insani. All rights reserved.
-</div>
-""", unsafe_allow_html=True)
+    # Footer
+    st.markdown(f"""
+    <div style="text-align: center; padding-top: 20px;">
+        © {current_year} Developed by: Galuh Adi Insani. All rights reserved.
+    </div>
+    """, unsafe_allow_html=True)
