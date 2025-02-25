@@ -1,11 +1,12 @@
 import os
-from keras.models import load_model  # TensorFlow is required for Keras to work
+from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
-import cv2  # Install opencv-python
+import cv2
 import numpy as np
 import streamlit as st
 from PIL import Image
 import datetime
+import h5py  # Import h5py
 
 st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
 
@@ -21,38 +22,55 @@ with st.sidebar:
     ''')
     add_vertical_space(3)
     st.write('Sosial media saya: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
- 
 
-    
+@st.cache_resource
+def load_models():
+    model_path = "keras_model.h5"  # Define model path
+
+    # Hack to change model config
+    try:
+        f = h5py.File(model_path, mode="r+")
+        model_config_string = f.attrs.get("model_config")
+        if model_config_string is not None and isinstance(model_config_string, bytes):
+            model_config_string = model_config_string.decode('utf-8')
+        if (model_config_string and '"groups": 1,' in model_config_string):
+            model_config_string = model_config_string.replace('"groups": 1,', '')
+            f.attrs['model_config'] = model_config_string  # Corrected assignment
+            f.flush()
+            model_config_string = f.attrs.get("model_config")
+            if model_config_string is not None and isinstance(model_config_string, bytes):
+                model_config_string = model_config_string.decode('utf-8')
+            assert '"groups": 1,' not in model_config_string
+        f.close()
+    except Exception as e:
+        st.warning(f"Error applying model config hack: {e}")
+
+    try:
+        model_eval = load_model(model_path, compile=False)
+        return model_eval
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        return None
+
 def main():
-     np.set_printoptions(suppress=True)
-     image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")# this captures the image 
-     if image:
+    np.set_printoptions(suppress=True)
+    image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")
+    model_eval = load_models()
+    if model_eval is None:
+        return
+
+    if image:
         np.set_printoptions(suppress=True)
-        model_path = "keras_model.h5"
-        if not os.path.exists(model_path):
-            st.error(f"Model file not found at {model_path}. Please check the file path.")
-            return
-
-        # Define custom objects if you have any
-        custom_objects = {}  # Replace with your custom objects if needed
-
-        try:
-            model = load_model(model_path, compile=False, custom_objects=custom_objects) # this section loads the  model and labels that are used
-        except Exception as e:
-            st.error(f"Error loading the model: {e}")
-            return
         class_names = open("labels.txt", "r").readlines()
         
-        img = Image.open(image) # stores the natural image so that itcan be manipulated
+        img = Image.open(image)
         img_array = np.array(img)
         
-        image = cv2.resize(img_array, (224, 224),interpolation=cv2.INTER_AREA)#resizes it so that it is appropiate for the model to consume theimage
-        # st.image(image)
+        image = cv2.resize(img_array, (224, 224),interpolation=cv2.INTER_AREA)
         image = np.asarray(image).reshape(1,224, 224, 3)
         image = (image / 127.5) - 1
         # Predicts the model
-        prediction = model.predict(image)
+        prediction = model_eval.predict(image)
         index = np.argmax(prediction)
         class_name = class_names[index]
         confidence_score = prediction[0][index]
