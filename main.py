@@ -23,24 +23,25 @@ with st.sidebar:
     st.write('Sosial media saya: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
  
 
-@st.cache_resource
-def load_models():
-    try:
-        model_eval = load_model('keras_model.h5', compile=False)
-        return model_eval
-    except Exception as e:
-        st.error(f"Error loading models: {e}")
-        return None
-
+    
 def main():
      np.set_printoptions(suppress=True)
      image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")# this captures the image 
-     model_eval = load_models() # load model
-     if model_eval is None:
-        return
-
      if image:
         np.set_printoptions(suppress=True)
+        model_path = "keras_model.h5"
+        if not os.path.exists(model_path):
+            st.error(f"Model file not found at {model_path}. Please check the file path.")
+            return
+
+        # Define custom objects if you have any
+        custom_objects = {}  # Replace with your custom objects if needed
+
+        try:
+            model = load_model(model_path, compile=False, custom_objects=custom_objects) # this section loads the  model and labels that are used
+        except Exception as e:
+            st.error(f"Error loading the model: {e}")
+            return
         class_names = open("labels.txt", "r").readlines()
         
         img = Image.open(image) # stores the natural image so that itcan be manipulated
@@ -51,7 +52,7 @@ def main():
         image = np.asarray(image).reshape(1,224, 224, 3)
         image = (image / 127.5) - 1
         # Predicts the model
-        prediction = model_eval.predict(image) #use model_eval
+        prediction = model.predict(image)
         index = np.argmax(prediction)
         class_name = class_names[index]
         confidence_score = prediction[0][index]
