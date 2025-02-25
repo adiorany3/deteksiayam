@@ -12,16 +12,16 @@ st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
 
 # Sidebar contents
 with st.sidebar:
-    st.title('🤖 Mesin pendeteksi ini')
+    st.title('🤖 Mesin pendeteksi penyakit ayam')
     st.markdown('''
     ## Tentang Software
-    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dan menggunakan teknologi:
-    - TensorFlow
-    - Keras
-    - Google Colab
+    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dengan hanya visualisasi kotoran ayam dan menggunakan teknologi:
+    - Machine learning
+    - Deep learning
+    - Computer vision
     ''')
     add_vertical_space(3)
-    st.write('Sosial media saya: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
+    st.write('Sosial media Galuh Adi Insani: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
 
 @st.cache_resource
 def load_models():
