@@ -1,0 +1,4 @@
+0 Sehat
+1 NCD
+2 Koksidiosis
+3 Salmonela
