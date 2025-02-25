@@ -9,4 +9,3 @@ pillow
 datetime
 keras
 h5py
-telegram

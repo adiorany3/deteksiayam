@@ -7,14 +7,8 @@ import streamlit as st
 from PIL import Image
 import datetime
 import h5py  # Import h5py
-import telegram
 
 st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
-
-def send_to_telegram(image_path, bot_token, chat_id):
-    bot = telegram.Bot(token=bot_token)
-    with open(image_path, 'rb') as photo:
-        bot.send_photo(chat_id=chat_id, photo=photo)
 
 # Sidebar contents
 with st.sidebar:
@@ -99,16 +93,7 @@ def main():
             st.write("Confidence Score:", str(np.round(confidence_score * 100))[:-2], "%")
         else:
             st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
-    if confidence_score > 0.9:
-        # ... (tampilkan hasil prediksi) ...
-        image_path = "temp_image.jpg" #simpan gambar sementara
-        img.save(image_path)
-        bot_token = "YOUR_TELEGRAM_BOT_TOKEN"
-        chat_id = "YOUR_TELEGRAM_CHAT_ID"
-        send_to_telegram(image_path, bot_token, chat_id)
-        os.remove(image_path) #hapus gambar sementara
-    else:
-        st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
+
 
 if __name__ == '__main__':
     current_year = datetime.datetime.now().year
