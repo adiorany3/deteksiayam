@@ -34,7 +34,14 @@ def main():
             st.error(f"Model file not found at {model_path}. Please check the file path.")
             return
 
-        model = load_model(model_path, compile=False) # this section loads the  model and labels that are used
+        # Define custom objects if you have any
+        custom_objects = {}  # Replace with your custom objects if needed
+
+        try:
+            model = load_model(model_path, compile=False, custom_objects=custom_objects) # this section loads the  model and labels that are used
+        except Exception as e:
+            st.error(f"Error loading the model: {e}")
+            return
         class_names = open("labels.txt", "r").readlines()
         
         img = Image.open(image) # stores the natural image so that itcan be manipulated
