@@ -15,10 +15,17 @@ with st.sidebar:
     st.title('🤖 Mesin pendeteksi penyakit ayam')
     st.markdown('''
     ## Tentang Software
-    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dengan hanya visualisasi kotoran ayam dan menggunakan teknologi:
-    - Machine learning
-    - Deep learning
-    - Computer vision
+    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dengan hanya visualisasi kotoran ayam dan menggunakan teknologi vision dan machine learning, software akan menentukan apakah ayam:
+    - Sehat
+    - NCD
+    - Koksidiosis
+    - Salmonela
+
+    ## Cara Penggunaan
+    1. Foto atau upload gambar kotoran ayam
+    2. Software akan menentukan penyakit ayam dan menampilkan hasil prediksi penyakit ayam
+
+    Software memberikan prediksi awal dari hasil visualisasi kotoran ayam, namun hasil akhir harus dikonfirmasi oleh dokter hewan.
     ''')
     add_vertical_space(3)
     st.write('Sosial media Galuh Adi Insani: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
