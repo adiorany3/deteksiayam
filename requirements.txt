@@ -1,5 +1,5 @@
 streamlit-webrtc
-opencv-python
+opencv-python-headless
 SciPy
 NumPy
 tensorflow
