@@ -65,7 +65,7 @@ def main():
             elif index == 1:
                 st.subheader("NCD")
                 st.write("Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin..")
-            elif index ==  2:
+            elif index == 2:
                 st.subheader("Koksidiosis")
                 st.write("Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.")
             elif index == 3:
