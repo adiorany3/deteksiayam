@@ -13,14 +13,13 @@ with st.sidebar:
     st.title('🤖 Item Detection')
     st.markdown('''
     ## About
-    This app uses a kersa model to detect items using:
+    This app uses a Keras model to detect items using:
     - [Streamlit](https://streamlit.io/)
     - [Teachable Machine](https://teachablemachine.withgoogle.com/)
     ''')
     add_vertical_space(3)
     st.write('This is my linkedin🤗: (https://www.linkedin.com/in/tanviralamsyed/)')
  
-
 
     
 def main():
