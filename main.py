@@ -22,8 +22,9 @@ with st.sidebar:
     - Salmonela
 
     ## Cara Penggunaan
-    1. Foto atau upload gambar kotoran ayam
+    1. Foto atau upload gambar kotoran ayam, pastikan dengan pencahayaan yang memadai
     2. Software akan menentukan penyakit ayam dan menampilkan hasil prediksi penyakit ayam
+    3. software ini dikembangkan dengan memanfaatkan database Kaggle yang kemudian dilakukan proses training model menggunakan teknologi machine learning, update data akan dilakukan secara berkala untuk mendapatkan hasil yang lebih baik.
 
     Software memberikan prediksi awal dari hasil visualisasi kotoran ayam, namun hasil akhir harus dikonfirmasi oleh dokter hewan.
     ''')
