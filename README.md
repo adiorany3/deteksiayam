@@ -1,7 +1,82 @@
-# Selamat datang di software pendeteksi penyakit ayam melalui kotoran
+# Software Pendeteksi Penyakit Ayam melalui Kotoran
 
-Proyek ini bertujuan untuk memprediksi penyakit pada ayam broiler menggunakan dengan memanfaatkan alogaritma machine learning dari sample kotoran ayam yang terserang ND, Koksidiosis, Salmonela dan akan dikembangkan lebih lanjut secara berkala.
+## Deskripsi
+Proyek ini menggunakan machine learning untuk memprediksi penyakit pada ayam broiler berdasarkan analisis sampel kotoran. Saat ini, sistem dapat mendeteksi penyakit berikut:
+- ND (Newcastle Disease)
+- Koksidiosis
+- Salmonela
 
-Kode dibuat dengan memanfaatkan database dari Kaggle yang dilakukan proses machine learning dengan teachable machine, dan alogaritma disusun ulang untuk dapat dijalankan dalam lingkungan web apps.
+Sistem akan terus dikembangkan untuk mendeteksi jenis penyakit lainnya di masa mendatang.
+
+## Teknologi
+- Database gambar dari Kaggle
+- Model machine learning dibangun menggunakan Teachable Machine
+- Algoritma dioptimalkan untuk penggunaan dalam aplikasi web
+
+## Cara Penggunaan
+1. Clone repository ini ke komputer Anda
+2. Pastikan semua dependensi terinstal
+3. Jalankan aplikasi web sesuai instruksi di bagian Instalasi
+4. Unggah gambar kotoran ayam yang ingin dianalisis
+5. Sistem akan memberikan prediksi penyakit berdasarkan gambar tersebut
+
+## Instalasi
+
+# Perbaikan README untuk Pendeteksi Penyakit Ayam melalui Kotoran
+
+Berikut adalah perbaikan untuk README proyek Anda:
+
+```markdown
+# Software Pendeteksi Penyakit Ayam melalui Kotoran
+
+## Deskripsi
+Proyek ini menggunakan machine learning untuk memprediksi penyakit pada ayam broiler berdasarkan analisis sampel kotoran. Saat ini, sistem dapat mendeteksi penyakit berikut:
+- ND (Newcastle Disease)
+- Koksidiosis
+- Salmonela
+
+Sistem akan terus dikembangkan untuk mendeteksi jenis penyakit lainnya di masa mendatang.
+
+## Teknologi
+- Database gambar dari Kaggle
+- Model machine learning dibangun menggunakan Teachable Machine
+- Algoritma dioptimalkan untuk penggunaan dalam aplikasi web
+
+## Cara Penggunaan
+1. Clone repository ini ke komputer Anda
+2. Pastikan semua dependensi terinstal
+3. Jalankan aplikasi web sesuai instruksi di bagian Instalasi
+4. Unggah gambar kotoran ayam yang ingin dianalisis
+5. Sistem akan memberikan prediksi penyakit berdasarkan gambar tersebut
+
+## Instalasi
+```
+# Clone repository
+git clone https://github.com/username/deteksiayam.git
+cd deteksiayam
+
+# Instal dependensi (sesuaikan dengan kebutuhan proyek)
+pip install -r requirements.txt
+
+# Jalankan aplikasi
+python app.py
+```
+
+## Kontribusi
+Kontribusi untuk pengembangan proyek ini sangat diterima. Silakan buat pull request atau laporkan issues.
+
+## Lisensi
+Sertakan nama asli jika mau memperbaiki kode ini
+
+---
+
+Dibuat oleh: Galuh Adi Insani
+```
+
+Saran tambahan:
+1. Tambahkan contoh gambar hasil deteksi untuk memberikan gambaran visual
+2. Sertakan daftar dependensi spesifik dalam file requirements.txt
+3. Berikan informasi tentang dataset yang digunakan (jumlah sampel, sumber, dll)
+4. Tambahkan informasi kontak jika pengguna memiliki pertanyaan
 
 Created by : Galuh Adi Insani
