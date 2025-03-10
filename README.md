@@ -72,11 +72,3 @@ Sertakan nama asli jika mau memperbaiki kode ini
 
 Dibuat oleh: Galuh Adi Insani
 ```
-
-Saran tambahan:
-1. Tambahkan contoh gambar hasil deteksi untuk memberikan gambaran visual
-2. Sertakan daftar dependensi spesifik dalam file requirements.txt
-3. Berikan informasi tentang dataset yang digunakan (jumlah sampel, sumber, dll)
-4. Tambahkan informasi kontak jika pengguna memiliki pertanyaan
-
-Created by : Galuh Adi Insani
