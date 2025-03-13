@@ -28,9 +28,11 @@ with st.sidebar:
 
     Software memberikan prediksi awal dari hasil visualisasi kotoran ayam, namun hasil akhir harus dikonfirmasi oleh dokter hewan.
     ''')
-    add_vertical_space(3)
-    st.write('Sosial media Galuh Adi Insani: (https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)')
-    st.write('Datasheet reference: (https://www.kaggle.com/datasets/allandclive/chicken-disease-1)')
+add_vertical_space(3)
+st.markdown("### Connect With Developer")
+st.markdown("🔗 [LinkedIn - Galuh Adi Insani](https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)")
+st.markdown("### Data Source")
+st.markdown("📊 [Chicken Disease Dataset (Kaggle)](https://www.kaggle.com/datasets/allandclive/chicken-disease-1)")
 
 @st.cache_resource
 def load_models():
