@@ -199,7 +199,7 @@ def display_confidence(score):
     
     html = f"""
     <div class="confidence-display">
-        Confidence Score: {score}%
+        Confidence Score: {score:.2f}%
     </div>
     <div class="confidence-bar">
         <div class="confidence-bar-fill" style="width: {score}%; background-color: {color};"></div>
@@ -215,7 +215,7 @@ def create_gauge_chart(score):
         value = score,
         domain = {'x': [0, 1], 'y': [0, 1]},
         title = {'text': "Confidence Score", 'font': {'size': 16, 'color': "#1E3A8A"}},
-        number = {'font': {'size': 20, 'color': "#1E3A8A"}},
+        number = {'font': {'size': 20, 'color': "#1E3A8A"}, 'suffix': "%", 'valueformat': '.2f'},  # Format with 2 decimals
         gauge = {
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#1E3A8A"},
             'bar': {'color': "#1E3A8A" if score > 90 else "#eab308" if score > 70 else "#ef4444"},
@@ -273,46 +273,98 @@ def load_models():
         return None
 
 def main():
-    np.set_printoptions(suppress=True)
-    image = st.camera_input(label ="Capture Image", key="First Camera", label_visibility="hidden")
+    # Main header
+    st.markdown("<h1 class='main-header'>🔍 Sistem Deteksi Penyakit Ayam</h1>", unsafe_allow_html=True)
+    
+    # Create two columns for the main layout
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("<h3>📸 Ambil Gambar</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='camera-container'>", unsafe_allow_html=True)
+        # Camera input with improved styling
+        image = st.camera_input(label="Capture Image", key="First Camera", label_visibility="collapsed")
+        
+        # Add option to upload image
+        with st.expander("📤 Upload Gambar"):
+            uploaded_file = st.file_uploader("Pilih file gambar", type=["jpg", "jpeg", "png"])
+            if uploaded_file is not None and image is None:
+                image = uploaded_file
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+    # Load model
     model_eval = load_models()
-    if model_eval is None:
-        return
-
-    if image:
-        np.set_printoptions(suppress=True)
-        class_names = open("labels.txt", "r").readlines()
+    
+    # Results section
+    with col2:
+        st.markdown("<h3>🔬 Hasil Analisis</h3>", unsafe_allow_html=True)
         
-        img = Image.open(image)
-        img_array = np.array(img)
+        if model_eval is None:
+            st.error("Model tidak dapat dimuat. Silakan periksa file model Anda.")
+            return
         
-        image = cv2.resize(img_array, (224, 224),interpolation=cv2.INTER_AREA)
-        image = np.asarray(image).reshape(1,224, 224, 3)
-        image = (image / 127.5) - 1
-        # Predicts the model
-        prediction = model_eval.predict(image)
-        index = np.argmax(prediction)
-        class_name = class_names[index]
-        confidence_score = prediction[0][index]
-        print(class_name)
-        print(confidence_score)
-        if confidence_score > 0.9:
-            if index == 0:
-                st.subheader("Sehat")
-                st.write("Kotoran ayam yang sehat memiliki ciri-ciri tertentu yang mencerminkan kesehatan pencernaan dan kondisi ayam secara keseluruhan.")
-            elif index == 1:
-                st.subheader("NCD")
-                st.write("Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin..")
-            elif index == 2:
-                st.subheader("Koksidiosis")
-                st.write("Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.")
-            elif index == 3:
-                st.subheader("Salmonela")
-                st.write("Infeksi bakteri yang dapat menyebabkan gangguan pencernaan. Gejala: Diare, kotoran berwarna hijau atau kuning, penurunan nafsu makan, dan demam. Pencegahan: Menjaga kebersihan kandang dan pakan, pemberian antibiotik jika diperlukan.")
-            print("Class:", class_name[2:], end="")
-            st.write("Confidence Score:", str(np.round(confidence_score * 100))[:-2], "%")
-        else:
-            st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
+        if image:
+            # Display uploaded/captured image
+            with st.expander("🖼️ Gambar Input", expanded=True):
+                st.image(image, caption="Gambar Kotoran Ayam", use_container_width=True)
+            
+            with st.spinner("Menganalisis gambar..."):
+                # Process the image
+                np.set_printoptions(suppress=True)
+                class_names = open("labels.txt", "r").readlines()
+                
+                img = Image.open(image)
+                img_array = np.array(img)
+                
+                img_resized = cv2.resize(img_array, (224, 224), interpolation=cv2.INTER_AREA)
+                img_processed = np.asarray(img_resized).reshape(1, 224, 224, 3)
+                img_processed = (img_processed / 127.5) - 1
+                
+                # Predict using the model
+                prediction = model_eval.predict(img_processed)
+                index = np.argmax(prediction)
+                class_name = class_names[index]
+                confidence_score = prediction[0][index]
+                confidence_percent = confidence_score * 100  # Keep as float, don't convert to int
+                
+                # Display results based on prediction
+                if confidence_score > 0.7:  # Slightly lower threshold for better usability
+                    if index == 0:
+                        st.markdown(f"""
+                        <div class="disease-card healthy-card">
+                            <div class="disease-title">✅ Sehat</div>
+                            <p>Kotoran ayam yang sehat memiliki ciri-ciri tertentu yang mencerminkan kesehatan pencernaan dan kondisi ayam secara keseluruhan.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    elif index == 1:
+                        st.markdown(f"""
+                        <div class="disease-card ncd-card">
+                            <div class="disease-title">🦠 Newcastle Disease (NCD)</div>
+                            <p>Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    elif index == 2:
+                        st.markdown(f"""
+                        <div class="disease-card coccidiosis-card">
+                            <div class="disease-title">🔬 Koksidiosis</div>
+                            <p>Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    elif index == 3:
+                        st.markdown(f"""
+                        <div class="disease-card salmonella-card">
+                            <div class="disease-title">🧫 Salmonela</div>
+                            <p>Infeksi bakteri yang dapat menyebabkan gangguan pencernaan. Gejala: Diare, kotoran berwarna hijau atau kuning, penurunan nafsu makan, dan demam. Pencegahan: Menjaga kebersihan kandang dan pakan, pemberian antibiotik jika diperlukan.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Display confidence score
+                    display_confidence(confidence_percent)
+                    
+                    # Display gauge chart
+                    st.plotly_chart(create_gauge_chart(confidence_percent), use_container_width=True)
+                else:
+                    st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
 
     # Footer with LinkedIn profile link and improved styling
     st.markdown("""
