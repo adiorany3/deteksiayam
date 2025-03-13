@@ -8,20 +8,19 @@ from PIL import Image
 import datetime
 import h5py
 import plotly.graph_objects as go
-from streamlit_lottie import st_lottie
 import requests
 import time
 
 # Define current_year at the module level
 current_year = datetime.datetime.now().year
 
-# Page configuration with custom theme
+# Page configuration with custom theme - FIXED VERSION
 st.set_page_config(
     page_title="Prediksi Penyakit Ayam",
     page_icon="🐔",
     layout="wide",
-    initial_sidebar_state="expanded",
-    theme="light"  # You can use "dark" if you prefer dark mode
+    initial_sidebar_state="expanded"
+    # Removed the theme parameter that was causing issues
 )
 
 # Custom CSS
