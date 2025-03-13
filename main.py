@@ -234,7 +234,7 @@ def main():
             
             # Display the captured image
             with st.expander("Gambar Input", expanded=True):
-                st.image(image, caption="Gambar Kotoran Ayam", use_column_width=True)
+                st.image(image, caption="Gambar Kotoran Ayam", use_container_width=True)
                 
             # Show processing animation
             with st.spinner("Menganalisis gambar..."):
