@@ -6,36 +6,242 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 import datetime
-import h5py  # Import h5py
+import h5py
+import plotly.graph_objects as go
 
-# Define current_year at the module level so it's available everywhere
+# Define current_year at the module level
 current_year = datetime.datetime.now().year
 
-st.set_page_config(page_title="Prediksi penyakit ayam", page_icon="🐔")
+# Page configuration
+st.set_page_config(
+    page_title="Deteksi Penyakit Ayam",
+    page_icon="🐔",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-# Sidebar contents
+# Custom CSS for modern styling
+st.markdown("""
+<style>
+    /* Main container styling */
+    .main {
+        background-color: #f8f9fa;
+    }
+    
+    /* Header styling */
+    .main-header {
+        color: #1E3A8A;
+        font-weight: 700;
+        text-align: center;
+        padding: 0.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(90deg, rgba(219,234,254,0.3) 0%, rgba(191,219,254,0.3) 100%);
+        border-radius: 10px;
+    }
+    
+    /* Card styling */
+    .disease-card {
+        padding: 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        transition: transform 0.2s ease;
+    }
+    .disease-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Card variants */
+    .healthy-card {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        border-left: 5px solid #22c55e;
+    }
+    .ncd-card {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-left: 5px solid #ef4444;
+    }
+    .coccidiosis-card {
+        background: linear-gradient(135deg, #fef9c3 0%, #fde68a 100%);
+        border-left: 5px solid #eab308;
+    }
+    .salmonella-card {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-left: 5px solid #3b82f6;
+    }
+    
+    /* Text elements */
+    .disease-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #111827;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background-color: #1E3A8A; 
+        color: white;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        background-color: #1E40AF;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Make sidebar more elegant */
+    .css-1d391kg {
+        background-color: #f1f5f9;
+    }
+    
+    /* Footer styling */
+    .footer {
+        text-align: center;
+        padding: 1.5rem 0;
+        margin-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+        color: #6b7280;
+    }
+    
+    /* Remove default Streamlit styling */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Improve expandable sections */
+    .streamlit-expanderHeader {
+        background-color: #f8fafc !important;
+        font-weight: 600 !important;
+        color: #1E3A8A !important;
+    }
+    
+    /* Add animation to cards */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .disease-card {
+        animation: fadeIn 0.5s ease forwards;
+    }
+    
+    /* Improve confidence score display */
+    .confidence-display {
+        text-align: center;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1E3A8A;
+        margin: 0.5rem 0;
+    }
+    .confidence-bar {
+        height: 6px;
+        background-color: #e5e7eb;
+        border-radius: 3px;
+        margin: 0.5rem 0;
+    }
+    .confidence-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+    }
+    
+    /* Camera input styling */
+    .camera-container {
+        background-color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Sidebar contents with improved styling
 with st.sidebar:
-    st.title('🤖 Mesin pendeteksi penyakit ayam')
-    st.markdown('''
-    ## Tentang Software
-    Software ini diolah dan dirancang untuk mempermudah melakukan prediksi penyakit pada unggas dengan hanya visualisasi kotoran ayam dan menggunakan teknologi vision dan machine learning, software akan menentukan apakah ayam:
-    - Sehat
-    - NCD
-    - Koksidiosis
-    - Salmonela
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🤖 Deteksi Penyakit Ayam</h2>", unsafe_allow_html=True)
+    
+    with st.expander("ℹ️ Tentang Aplikasi", expanded=True):
+        st.markdown('''
+        ### Tentang Software
+        
+        Aplikasi ini dirancang untuk memprediksi penyakit pada unggas berdasarkan visualisasi kotoran ayam menggunakan teknologi computer vision dan machine learning.
+        
+        **Penyakit yang dapat dideteksi:**
+        - ✅ **Sehat** - Kondisi normal
+        - 🦠 **NCD** - Newcastle Disease 
+        - 🔬 **Koksidiosis** - Infeksi parasit
+        - 🧫 **Salmonela** - Infeksi bakteri
+        ''')
+    
+    with st.expander("📋 Cara Penggunaan", expanded=False):
+        st.markdown('''
+        1. 📸 Foto kotoran ayam dengan kamera
+        2. 🔍 Pastikan pencahayaan memadai
+        3. 📊 Sistem akan menganalisis dan menampilkan hasil
+        
+        > ⚠️ Software memberikan prediksi awal, hasil akhir harus dikonfirmasi oleh dokter hewan.
+        ''')
+        
+    with st.expander("🔬 Sumber Data", expanded=False):
+        st.markdown('''
+        Data dikembangkan dengan memanfaatkan database Kaggle yang diproses menggunakan teknologi machine learning.
+        
+        📊 [Chicken Disease Dataset (Kaggle)](https://www.kaggle.com/datasets/allandclive/chicken-disease-1)
+        ''')
+    
+    st.markdown("---")
+    st.markdown("<div style='text-align: center;'><h4>Developer Contact</h4></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center;'><a href='https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/' target='_blank'>🔗 Galuh Adi Insani</a></div>", unsafe_allow_html=True)
 
-    ## Cara Penggunaan
-    1. Foto atau upload gambar kotoran ayam, pastikan dengan pencahayaan yang memadai
-    2. Software akan menentukan penyakit ayam dan menampilkan hasil prediksi penyakit ayam
-    3. software ini dikembangkan dengan memanfaatkan database Kaggle yang kemudian dilakukan proses training model menggunakan teknologi machine learning, update data akan dilakukan secara berkala untuk mendapatkan hasil yang lebih baik.
+# Create custom function for displaying confidence score
+def display_confidence(score):
+    color = "#22c55e" if score > 90 else "#eab308" if score > 70 else "#ef4444"
+    
+    html = f"""
+    <div class="confidence-display">
+        Confidence Score: {score}%
+    </div>
+    <div class="confidence-bar">
+        <div class="confidence-bar-fill" style="width: {score}%; background-color: {color};"></div>
+    </div>
+    """
+    
+    return st.markdown(html, unsafe_allow_html=True)
 
-    Software memberikan prediksi awal dari hasil visualisasi kotoran ayam, namun hasil akhir harus dikonfirmasi oleh dokter hewan.
-    ''')
-add_vertical_space(3)
-st.markdown("### Connect With Developer")
-st.markdown("🔗 [LinkedIn - Galuh Adi Insani](https://www.linkedin.com/in/galuh-adi-insani-1aa0a5105/)")
-st.markdown("### Data Source")
-st.markdown("📊 [Chicken Disease Dataset (Kaggle)](https://www.kaggle.com/datasets/allandclive/chicken-disease-1)")
+# Plotly gauge chart for confidence score
+def create_gauge_chart(score):
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = score,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "Confidence Score", 'font': {'size': 16, 'color': "#1E3A8A"}},
+        number = {'font': {'size': 20, 'color': "#1E3A8A"}},
+        gauge = {
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#1E3A8A"},
+            'bar': {'color': "#1E3A8A" if score > 90 else "#eab308" if score > 70 else "#ef4444"},
+            'bgcolor': "white",
+            'borderwidth': 2,
+            'bordercolor': "#e5e7eb",
+            'steps': [
+                {'range': [0, 50], 'color': '#fee2e2'},
+                {'range': [50, 80], 'color': '#fef9c3'},
+                {'range': [80, 100], 'color': '#dcfce7'}
+            ],
+            'threshold': {
+                'line': {'color': "#16a34a", 'width': 4},
+                'thickness': 0.75,
+                'value': 90
+            }
+        }
+    ))
+    
+    fig.update_layout(
+        height=150,
+        margin=dict(l=10, r=10, t=30, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
 
 @st.cache_resource
 def load_models():
