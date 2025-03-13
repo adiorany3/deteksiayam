@@ -335,29 +335,29 @@ def main():
                     if index == 0:
                         st.markdown(f"""
                         <div class="disease-card healthy-card">
-                            <div class="disease-title">✅ Sehat</div>
-                            <p>Kotoran ayam yang sehat memiliki ciri-ciri tertentu yang mencerminkan kesehatan pencernaan dan kondisi ayam secara keseluruhan.</p>
+                            <div class="disease-title" style="color: #000000;">✅ Sehat</div>
+                            <p style="color: #000000;">Kotoran ayam yang sehat memiliki ciri-ciri tertentu yang mencerminkan kesehatan pencernaan dan kondisi ayam secara keseluruhan.</p>
                         </div>
                         """, unsafe_allow_html=True)
                     elif index == 1:
                         st.markdown(f"""
                         <div class="disease-card ncd-card">
-                            <div class="disease-title">🦠 Newcastle Disease (NCD)</div>
-                            <p>Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin.</p>
+                            <div class="disease-title" style="color: #000000;">🦠 Newcastle Disease (NCD)</div>
+                            <p style="color: #000000;">Penyakit virus yang sangat menular. Gejala: Gangguan pernapasan, saraf, dan pencernaan. Kotoran bisa berwarna hijau atau kuning, berair, dan mengandung darah. Pencegahan: Vaksinasi rutin.</p>
                         </div>
                         """, unsafe_allow_html=True)
                     elif index == 2:
                         st.markdown(f"""
                         <div class="disease-card coccidiosis-card">
-                            <div class="disease-title">🔬 Koksidiosis</div>
-                            <p>Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.</p>
+                            <div class="disease-title" style="color: #000000;">🔬 Koksidiosis</div>
+                            <p style="color: #000000;">Penyakit protozoa yang menyerang usus. Gejala: Kotoran berdarah, diare, penurunan nafsu makan, dan kelemahan. Pencegahan: Menjaga kebersihan kandang, pemberian antikoksidia.</p>
                         </div>
                         """, unsafe_allow_html=True)
                     elif index == 3:
                         st.markdown(f"""
                         <div class="disease-card salmonella-card">
-                            <div class="disease-title">🧫 Salmonela</div>
-                            <p>Infeksi bakteri yang dapat menyebabkan gangguan pencernaan. Gejala: Diare, kotoran berwarna hijau atau kuning, penurunan nafsu makan, dan demam. Pencegahan: Menjaga kebersihan kandang dan pakan, pemberian antibiotik jika diperlukan.</p>
+                            <div class="disease-title" style="color: #000000;">🧫 Salmonela</div>
+                            <p style="color: #000000;">Infeksi bakteri yang dapat menyebabkan gangguan pencernaan. Gejala: Diare, kotoran berwarna hijau atau kuning, penurunan nafsu makan, dan demam. Pencegahan: Menjaga kebersihan kandang dan pakan, pemberian antibiotik jika diperlukan.</p>
                         </div>
                         """, unsafe_allow_html=True)
                     
