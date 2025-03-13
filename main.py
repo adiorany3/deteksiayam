@@ -51,18 +51,21 @@ st.markdown("""
         transform: translateY(-2px);
     }
     
-    /* Card variants */
+    /* Card variants - without background colors, more subtle styling */
     .healthy-card {
-        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-        border-left: 5px solid #22c55e;
+        background: white;
+        border-left: 4px solid #22c55e;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .ncd-card {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        border-left: 5px solid #ef4444;
+        background: white;
+        border-left: 4px solid #ef4444;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .coccidiosis-card {
-        background: linear-gradient(135deg, #fef9c3 0%, #fde68a 100%);
-        border-left: 5px solid #eab308;
+        background: white;
+        border-left: 4px solid #eab308;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .salmonella-card {
         background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
