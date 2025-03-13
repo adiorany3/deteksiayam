@@ -20,7 +20,8 @@ st.set_page_config(
     page_title="Prediksi Penyakit Ayam",
     page_icon="🐔",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    theme="light"  # You can use "dark" if you prefer dark mode
 )
 
 # Custom CSS
@@ -85,6 +86,30 @@ st.markdown("""
         color: #6b7280;
         padding: 1rem;
         font-size: 0.875rem;
+    }
+    /* Add these to your existing CSS */
+    .result-section {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    .gauge-container {
+        margin-top: -1rem;
+        margin-bottom: -1rem;
+    }
+    .stExpander {
+        border: none !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        border-radius: 8px !important;
+        overflow: hidden;
+    }
+    /* Make text color more visible */
+    p, li {
+        color: #333333 !important;
+    }
+    /* Better styling for expandable sections */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        color: #1E88E5 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -174,7 +199,8 @@ def create_gauge_chart(score):
         mode = "gauge+number",
         value = score,
         domain = {'x': [0, 1], 'y': [0, 1]},
-        title = {'text': "Confidence Score", 'font': {'size': 24}},
+        title = {'text': "Confidence Score", 'font': {'size': 18}},  # Reduced title size
+        number = {'font': {'size': 24, 'color': "#1E88E5", 'family': 'Arial Black'}},
         gauge = {
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
             'bar': {'color': "#1E88E5" if score > 90 else "#FFC107" if score > 70 else "#F44336"},
@@ -195,8 +221,8 @@ def create_gauge_chart(score):
     ))
     
     fig.update_layout(
-        height=250,
-        margin=dict(l=20, r=20, t=30, b=20),
+        height=180,  # Reduced height from 250 to 180
+        margin=dict(l=10, r=10, t=30, b=10),  # Reduced margins
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
     )
@@ -287,7 +313,9 @@ def main():
                     st.markdown("</div>", unsafe_allow_html=True)
                     
                     # Display confidence score with gauge chart
+                    st.markdown("<div class='gauge-container'>", unsafe_allow_html=True)
                     st.plotly_chart(create_gauge_chart(confidence_percent), use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
                     
                     # Add recommendations based on the disease
                     with st.expander("📋 Rekomendasi Penanganan"):
