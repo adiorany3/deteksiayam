@@ -54,21 +54,21 @@ st.markdown("""
     /* Card variants - without background colors, more subtle styling */
     .healthy-card {
         background: white;
-        border-left: 4px solid #22c55e;
+        border-left: 4px solid #00000F;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .ncd-card {
         background: white;
-        border-left: 4px solid #ef4444;
+        border-left: 4px solid #00000F;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .coccidiosis-card {
         background: white;
-        border-left: 4px solid #eab308;
+        border-left: 4px solid #00000F;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
     .salmonella-card {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        background: linear-gradient(135deg, #dbeafe 0%, #00000F 100%);
         border-left: 5px solid #3b82f6;
     }
     
