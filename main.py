@@ -1,3 +1,7 @@
+# Developed by Galuh Adi Insani
+# Dimohon jangan hilangkan pada bagian ini untuk menghargai hasil kerja keras developer
+
+# Import necessary libraries
 import os
 from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
