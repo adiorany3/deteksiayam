@@ -279,60 +279,6 @@ def load_models():
         st.error(f"Error loading models: {e}")
         return None
 
-def validate_image(image_file):
-    # Check file size (max 5MB)
-    MAX_SIZE = 5 * 1024 * 1024  # 5MB in bytes
-    if image_file.size > MAX_SIZE:
-        return False, "Ukuran file terlalu besar. Maksimal 5MB."
-    
-    try:
-        # Open and validate image
-        img = Image.open(image_file)
-        # Convert to RGB if needed
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-        return True, img
-    except Exception as e:
-        return False, f"Error memproses gambar: {str(e)}"
-
-def preprocess_image(img):
-    try:
-        # Convert PIL Image to numpy array
-        img_array = np.array(img)
-        
-        # Resize image while maintaining aspect ratio
-        target_size = (224, 224)
-        h, w = img_array.shape[:2]
-        aspect = w/h
-        
-        if aspect > 1:
-            # Width is larger
-            new_w = target_size[0]
-            new_h = int(new_w/aspect)
-        else:
-            # Height is larger
-            new_h = target_size[1]
-            new_w = int(new_h*aspect)
-            
-        # Resize with proper interpolation
-        resized = cv2.resize(img_array, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        
-        # Create black canvas of target size
-        final_img = np.zeros((target_size[0], target_size[1], 3), dtype=np.uint8)
-        
-        # Calculate padding
-        x_offset = (target_size[0] - new_w) // 2
-        y_offset = (target_size[1] - new_h) // 2
-        
-        # Place resized image on canvas
-        final_img[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-        
-        # Normalize the image
-        processed = (final_img / 127.5) - 1
-        return True, processed
-    except Exception as e:
-        return False, f"Error preprocessing gambar: {str(e)}"
-
 def main():
     # Main header
     st.markdown("<h1 class='main-header'>🔍 Sistem Deteksi Penyakit Ayam</h1>", unsafe_allow_html=True)
@@ -367,39 +313,26 @@ def main():
         if image:
             # Display uploaded/captured image
             with st.expander("🖼️ Gambar Input", expanded=True):
-                # Validate image
-                is_valid, result = validate_image(image)
-                if not is_valid:
-                    st.error(result)
-                    return
-                
-                img = result
-                st.image(img, caption="Gambar Kotoran Ayam", use_column_width=True)
+                st.image(image, caption="Gambar Kotoran Ayam", use_container_width=True)
             
             with st.spinner("Menganalisis gambar..."):
                 # Process the image
                 np.set_printoptions(suppress=True)
                 class_names = open("labels.txt", "r").readlines()
                 
-                # Preprocess image
-                is_success, processed_img = preprocess_image(img)
-                if not is_success:
-                    st.error(processed_img)
-                    return
+                img = Image.open(image)
+                img_array = np.array(img)
                 
-                # Reshape for model input
-                img_processed = processed_img.reshape(1, 224, 224, 3)
+                img_resized = cv2.resize(img_array, (224, 224), interpolation=cv2.INTER_AREA)
+                img_processed = np.asarray(img_resized).reshape(1, 224, 224, 3)
+                img_processed = (img_processed / 127.5) - 1
                 
                 # Predict using the model
-                try:
-                    prediction = model_eval.predict(img_processed)
-                    index = np.argmax(prediction)
-                    class_name = class_names[index]
-                    confidence_score = prediction[0][index]
-                    confidence_percent = confidence_score * 100
-                except Exception as e:
-                    st.error(f"Error saat melakukan prediksi: {str(e)}")
-                    return
+                prediction = model_eval.predict(img_processed)
+                index = np.argmax(prediction)
+                class_name = class_names[index]
+                confidence_score = prediction[0][index]
+                confidence_percent = confidence_score * 100  # Keep as float, don't convert to int
                 
                 # Display results based on prediction
                 if confidence_score > 0.7:  # Slightly lower threshold for better usability
