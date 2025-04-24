@@ -52,7 +52,7 @@ Sistem akan terus dikembangkan untuk mendeteksi jenis penyakit lainnya di masa m
 ## Instalasi
 ```
 # Clone repository
-git clone https://github.com/username/deteksiayam.git
+git clone https://github.com/adiorany3/deteksiayam.git
 cd deteksiayam
 
 # Instal dependensi (sesuaikan dengan kebutuhan proyek)
