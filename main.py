@@ -374,7 +374,7 @@ def main():
                     return
                 
                 img = result
-                st.image(img, caption="Gambar Kotoran Ayam", use_column_width=True)
+                st.image(img, caption="Gambar Kotoran Ayam", use_container_width=True)  # Updated parameter
             
             with st.spinner("Menganalisis gambar..."):
                 # Process the image
@@ -436,7 +436,7 @@ def main():
                     display_confidence(confidence_percent)
                     
                     # Display gauge chart
-                    st.plotly_chart(create_gauge_chart(confidence_percent), use_container_width=True)
+                    st.plotly_chart(create_gauge_chart(confidence_percent), use_container_width=True)  # Updated parameter
                 else:
                     st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
 
