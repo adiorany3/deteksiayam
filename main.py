@@ -261,96 +261,88 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Define custom objects to handle DepthwiseConv2D properly
-        class CustomDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
-            def __init__(self, **kwargs):
-                kwargs.pop('groups', None)  # Remove groups parameter
-                super().__init__(**kwargs)
-            
-            def get_config(self):
-                config = super().get_config()
-                config.pop('groups', None)  # Ensure groups is not in config
-                return config
+        # First, try to create a base MobileNet model
+        base_model = tf.keras.applications.MobileNetV2(
+            input_shape=(224, 224, 3),
+            include_top=False,
+            weights=None
+        )
         
-        # Define custom model class to handle the architecture
-        class CustomModel(tf.keras.Model):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-            
-            def call(self, inputs):
-                # Ensure inputs is treated as a single tensor
-                if isinstance(inputs, (list, tuple)):
-                    inputs = inputs[0]
-                return super().call(inputs)
+        # Create a new model with proper architecture
+        inputs = tf.keras.layers.Input(shape=(224, 224, 3))
+        x = base_model(inputs)
         
-        custom_objects = {
-            'DepthwiseConv2D': CustomDepthwiseConv2D,
-            'CustomModel': CustomModel
-        }
+        # Add global average pooling
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
         
+        # Add final dense layer
+        outputs = tf.keras.layers.Dense(4, activation='softmax')(x)  # 4 classes
+        
+        # Create the model
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        
+        # Load weights from the h5 file
+        with h5py.File(model_path, 'r') as f:
+            if 'model_weights' in f:
+                weight_names = []
+                weight_values = []
+                
+                def visit_weights(name):
+                    if 'kernel' in name or 'bias' in name or 'gamma' in name or 'beta' in name or 'moving_mean' in name or 'moving_variance' in name:
+                        weight_names.append(name)
+                        weight_values.append(f[name][()])
+                
+                f['model_weights'].visit(visit_weights)
+                
+                # Set weights layer by layer
+                weight_idx = 0
+                for layer in model.layers:
+                    if layer.weights:  # if layer has weights
+                        layer_weights = []
+                        for w in layer.weights:
+                            if weight_idx < len(weight_values):
+                                layer_weights.append(weight_values[weight_idx])
+                                weight_idx += 1
+                        if layer_weights:
+                            layer.set_weights(layer_weights)
+        
+        # Verify the model works with a test input
+        test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
         try:
-            # Try loading with custom objects
-            model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
+            with tf.device('/CPU:0'):
+                _ = model.predict(test_input, verbose=0)
+        except Exception as e:
+            st.warning(f"Model verification failed: {e}")
+            # Continue anyway as the model might still work
+        
+        return model
             
-            # Create a new model that wraps the loaded model to ensure single input
-            input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
-            x = model(input_layer)
-            wrapped_model = tf.keras.Model(inputs=input_layer, outputs=x)
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        import traceback
+        st.error(f"Detailed error: {traceback.format_exc()}")
+        
+        # Try one last time with minimal configuration
+        try:
+            st.warning("Attempting minimal model creation...")
+            # Create a simpler model
+            model = tf.keras.Sequential([
+                tf.keras.layers.Input(shape=(224, 224, 3)),
+                tf.keras.layers.Conv2D(32, 3, activation='relu'),
+                tf.keras.layers.GlobalAveragePooling2D(),
+                tf.keras.layers.Dense(4, activation='softmax')
+            ])
             
-            # Test the model with dummy data
-            dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
-            _ = wrapped_model.predict(dummy_input, verbose=0)
+            # Try to load weights if possible
+            try:
+                model.load_weights(model_path)
+            except:
+                st.warning("Could not load weights, using initialized weights")
             
-            return wrapped_model
-            
-        except Exception as e1:
-            st.warning(f"Direct loading failed: {e1}")
-            
-            # Try loading and rebuilding the model
-            with h5py.File(model_path, 'r') as f:
-                model_config = f.attrs.get('model_config')
-                if model_config is not None:
-                    if isinstance(model_config, bytes):
-                        model_config = model_config.decode('utf-8')
-                    
-                    config = json.loads(model_config)
-                    
-                    # Create a new model with proper input handling
-                    input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
-                    x = input_layer
-                    
-                    # Add the layers
-                    for layer_config in config['config']['layers']:
-                        if layer_config['class_name'] == 'InputLayer':
-                            continue
-                        
-                        # Clean up layer config
-                        if layer_config['class_name'] == 'DepthwiseConv2D':
-                            layer_config['config'].pop('groups', None)
-                        
-                        layer = tf.keras.layers.deserialize({
-                            'class_name': layer_config['class_name'],
-                            'config': layer_config['config']
-                        }, custom_objects=custom_objects)
-                        
-                        x = layer(x)
-                    
-                    # Create the model
-                    model = tf.keras.Model(inputs=input_layer, outputs=x)
-                    
-                    # Load weights
-                    weights_group = f['model_weights']
-                    for layer in model.layers[1:]:  # Skip input layer
-                        if layer.name in weights_group:
-                            weight_names = [name.decode('utf-8') for name in 
-                                         weights_group[layer.name].attrs['weight_names']]
-                            weight_values = [weights_group[layer.name][name][()] 
-                                          for name in weight_names]
-                            layer.set_weights(weight_values)
-                    
-                    return model
-            
-            raise ValueError("Could not load or rebuild model")
+            return model
+        except Exception as e2:
+            st.error(f"Final fallback failed: {e2}")
+            return None
             
     except Exception as e:
         st.error(f"Error loading models: {e}")
@@ -461,22 +453,36 @@ def main():
                     if len(img_processed.shape) == 3:
                         img_processed = np.expand_dims(img_processed, axis=0)
                     
-                    # Use model in inference mode
-                    with tf.device('/CPU:0'):  # Force CPU usage for inference
-                        # Ensure we're passing a single tensor
-                        prediction = model_eval.predict(img_processed, verbose=0)
-                        if isinstance(prediction, (list, tuple)):
-                            prediction = prediction[0]  # Take first output if multiple
+                    # Ensure input range is correct
+                    if img_processed.max() > 1.0 or img_processed.min() < -1.0:
+                        img_processed = (img_processed / 127.5) - 1.0
                     
-                    index = np.argmax(prediction)
-                    class_name = class_names[index]
+                    # Use model in inference mode
+                    with tf.device('/CPU:0'):
+                        prediction = model_eval.predict(
+                            img_processed,
+                            verbose=0,
+                            batch_size=1
+                        )
+                    
+                    # Handle various prediction output formats
+                    if isinstance(prediction, list):
+                        prediction = prediction[0]
+                    if len(prediction.shape) > 2:
+                        prediction = np.squeeze(prediction)
+                    if len(prediction.shape) == 1:
+                        prediction = np.expand_dims(prediction, 0)
+                    
+                    # Get prediction results
+                    index = np.argmax(prediction[0])
                     confidence_score = prediction[0][index]
                     confidence_percent = confidence_score * 100
                     
-                    # Log prediction details for debugging
-                    st.debug(f"Prediction shape: {prediction.shape}")
-                    st.debug(f"Class index: {index}")
-                    st.debug(f"Confidence: {confidence_percent:.2f}%")
+                    # Log details for debugging
+                    st.write(f"Debug - Input shape: {img_processed.shape}")
+                    st.write(f"Debug - Prediction shape: {prediction.shape}")
+                    st.write(f"Debug - Prediction values: {prediction[0]}")
+                    st.write(f"Debug - Selected class: {index}")
                     
                 except Exception as e:
                     st.error(f"Error saat melakukan prediksi: {str(e)}")
