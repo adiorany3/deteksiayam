@@ -263,8 +263,18 @@ def load_models():
         with h5py.File(model_path, 'r') as f:
             model_config = f.attrs.get('model_config')
             if model_config is not None:
-                import json
-                config_dict = json.loads(model_config.decode('utf-8'))
+                # Handle both string and bytes configurations
+                if isinstance(model_config, bytes):
+                    config_str = model_config.decode('utf-8')
+                else:
+                    config_str = model_config
+                
+                try:
+                    config_dict = json.loads(config_str)
+                except json.JSONDecodeError as je:
+                    st.warning(f"Error parsing model configuration: {je}")
+                    # Try loading the model directly as fallback
+                    return load_model(model_path, compile=False)
                 
                 # Function to remove 'groups' parameter from layer configs
                 def remove_groups_param(config):
@@ -287,9 +297,6 @@ def load_models():
                 remove_groups_param(config_dict)
                 
                 # Save the modified configuration to a temporary file
-                import tempfile
-                import os
-                
                 temp_model_path = os.path.join(tempfile.gettempdir(), 'temp_model.h5')
                 with h5py.File(temp_model_path, 'w') as temp_f:
                     # Copy all attributes and datasets from original file
@@ -303,16 +310,16 @@ def load_models():
                     # Copy the weights and other datasets
                     f.copy('model_weights', temp_f)
                     
-                # Load the model from the temporary file
-                model_eval = load_model(temp_model_path, compile=False)
-                
-                # Clean up the temporary file
                 try:
-                    os.remove(temp_model_path)
-                except:
-                    pass
-                
-                return model_eval
+                    # Load the model from the temporary file
+                    model_eval = load_model(temp_model_path, compile=False)
+                    return model_eval
+                finally:
+                    # Clean up the temporary file
+                    try:
+                        os.remove(temp_model_path)
+                    except:
+                        pass
             
         # Fallback: try loading the original model if no configuration was found
         model_eval = load_model(model_path, compile=False)
