@@ -3,6 +3,7 @@
 
 # Import necessary libraries
 import os
+import tensorflow as tf
 from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
 import cv2
@@ -253,27 +254,13 @@ def create_gauge_chart(score):
 @st.cache_resource
 def load_models():
     model_path = "keras_model.h5"  # Define model path
-
-    # Hack to change model config
+    
     try:
-        f = h5py.File(model_path, mode="r+")
-        model_config_string = f.attrs.get("model_config")
-        if model_config_string is not None and isinstance(model_config_string, bytes):
-            model_config_string = model_config_string.decode('utf-8')
-        if (model_config_string and '"groups": 1,' in model_config_string):
-            model_config_string = model_config_string.replace('"groups": 1,', '')
-            f.attrs['model_config'] = model_config_string  # Corrected assignment
-            f.flush()
-            model_config_string = f.attrs.get("model_config")
-            if model_config_string is not None and isinstance(model_config_string, bytes):
-                model_config_string = model_config_string.decode('utf-8')
-            assert '"groups": 1,' not in model_config_string
-        f.close()
-    except Exception as e:
-        st.warning(f"Error applying model config hack: {e}")
-
-    try:
-        model_eval = load_model(model_path, compile=False)
+        # Load the model with custom_objects to handle any custom layers
+        model_eval = load_model(model_path, compile=False, custom_objects=None)
+        
+        # Make sure the model is properly configured for inference
+        model_eval.make_predict_function()
         return model_eval
     except Exception as e:
         st.error(f"Error loading models: {e}")
@@ -300,35 +287,20 @@ def preprocess_image(img):
         # Convert PIL Image to numpy array
         img_array = np.array(img)
         
-        # Resize image while maintaining aspect ratio
-        target_size = (224, 224)
-        h, w = img_array.shape[:2]
-        aspect = w/h
-        
-        if aspect > 1:
-            # Width is larger
-            new_w = target_size[0]
-            new_h = int(new_w/aspect)
-        else:
-            # Height is larger
-            new_h = target_size[1]
-            new_w = int(new_h*aspect)
+        # Ensure the image is RGB
+        if len(img_array.shape) == 2:  # If grayscale
+            img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
+        elif img_array.shape[2] == 4:  # If RGBA
+            img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
             
-        # Resize with proper interpolation
-        resized = cv2.resize(img_array, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        # Resize to target size without maintaining aspect ratio
+        # This ensures consistent input shape for the model
+        target_size = (224, 224)
+        resized = cv2.resize(img_array, target_size, interpolation=cv2.INTER_AREA)
         
-        # Create black canvas of target size
-        final_img = np.zeros((target_size[0], target_size[1], 3), dtype=np.uint8)
+        # Normalize to [-1, 1] range
+        processed = (resized.astype('float32') / 127.5) - 1
         
-        # Calculate padding
-        x_offset = (target_size[0] - new_w) // 2
-        y_offset = (target_size[1] - new_h) // 2
-        
-        # Place resized image on canvas
-        final_img[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = resized
-        
-        # Normalize the image
-        processed = (final_img / 127.5) - 1
         return True, processed
     except Exception as e:
         return False, f"Error preprocessing gambar: {str(e)}"
@@ -392,7 +364,13 @@ def main():
                 
                 # Predict using the model
                 try:
-                    prediction = model_eval.predict(img_processed)
+                    # Convert to float32 for better compatibility
+                    img_processed = img_processed.astype('float32')
+                    
+                    # Use model in inference mode
+                    with tf.device('/CPU:0'):  # Force CPU usage for inference
+                        prediction = model_eval.predict(img_processed, verbose=0)
+                    
                     index = np.argmax(prediction)
                     class_name = class_names[index]
                     confidence_score = prediction[0][index]
