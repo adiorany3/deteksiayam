@@ -3,6 +3,9 @@
 
 # Import necessary libraries
 import os
+import json
+import tempfile
+import traceback
 import tensorflow as tf
 from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
@@ -256,14 +259,69 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Load the model with custom_objects to handle any custom layers
-        model_eval = load_model(model_path, compile=False, custom_objects=None)
-        
-        # Make sure the model is properly configured for inference
-        model_eval.make_predict_function()
+        # Open the model file to modify its configuration
+        with h5py.File(model_path, 'r') as f:
+            model_config = f.attrs.get('model_config')
+            if model_config is not None:
+                import json
+                config_dict = json.loads(model_config.decode('utf-8'))
+                
+                # Function to remove 'groups' parameter from layer configs
+                def remove_groups_param(config):
+                    if isinstance(config, dict):
+                        if 'config' in config:
+                            layer_config = config['config']
+                            if isinstance(layer_config, dict):
+                                # Remove 'groups' parameter if it exists
+                                layer_config.pop('groups', None)
+                        # Recursively process nested configurations
+                        for key, value in config.items():
+                            if isinstance(value, (dict, list)):
+                                remove_groups_param(value)
+                    elif isinstance(config, list):
+                        for item in config:
+                            if isinstance(item, (dict, list)):
+                                remove_groups_param(item)
+                
+                # Clean the configuration
+                remove_groups_param(config_dict)
+                
+                # Save the modified configuration to a temporary file
+                import tempfile
+                import os
+                
+                temp_model_path = os.path.join(tempfile.gettempdir(), 'temp_model.h5')
+                with h5py.File(temp_model_path, 'w') as temp_f:
+                    # Copy all attributes and datasets from original file
+                    for key, value in f.attrs.items():
+                        if key == 'model_config':
+                            # Save the modified config
+                            temp_f.attrs['model_config'] = json.dumps(config_dict).encode('utf-8')
+                        else:
+                            temp_f.attrs[key] = value
+                    
+                    # Copy the weights and other datasets
+                    f.copy('model_weights', temp_f)
+                    
+                # Load the model from the temporary file
+                model_eval = load_model(temp_model_path, compile=False)
+                
+                # Clean up the temporary file
+                try:
+                    os.remove(temp_model_path)
+                except:
+                    pass
+                
+                return model_eval
+            
+        # Fallback: try loading the original model if no configuration was found
+        model_eval = load_model(model_path, compile=False)
         return model_eval
+        
     except Exception as e:
         st.error(f"Error loading models: {e}")
+        import traceback
+        st.error(f"Detailed error: {traceback.format_exc()}")
         return None
 
 def validate_image(image_file):
