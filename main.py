@@ -267,66 +267,92 @@ def load_models():
                 # Remove 'groups' from kwargs if present
                 kwargs.pop('groups', None)
                 super().__init__(**kwargs)
+            
+            def get_config(self):
+                config = super().get_config()
+                config.pop('groups', None)
+                return config
         
         custom_objects = {
             'DepthwiseConv2D': CustomDepthwiseConv2D
         }
         
-        # First, try to load the model directly with custom objects
-        try:
-            model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
-            return model
-        except Exception as e1:
-            st.warning(f"Direct loading failed, trying alternative method: {e1}")
-        
-        # If direct loading fails, try rebuilding the model
+        # Try to load and fix the model
         with h5py.File(model_path, 'r') as f:
-            config = json.loads(f.attrs['model_config'].decode('utf-8') 
-                              if isinstance(f.attrs['model_config'], bytes) 
-                              else f.attrs['model_config'])
-            
-            # Clean up the configuration
-            def clean_config(cfg):
-                if isinstance(cfg, dict):
-                    # Remove 'groups' from layer configs
-                    if 'config' in cfg:
-                        if isinstance(cfg['config'], dict):
-                            cfg['config'].pop('groups', None)
-                    # Process nested dictionaries
-                    for key, value in cfg.items():
-                        if isinstance(value, (dict, list)):
-                            clean_config(value)
-                elif isinstance(cfg, list):
-                    for item in cfg:
-                        if isinstance(item, (dict, list)):
-                            clean_config(item)
-                return cfg
-            
-            # Clean the configuration
-            config = clean_config(config)
-            
-            # Create model from cleaned config
-            model = tf.keras.models.model_from_config(config, custom_objects=custom_objects)
-            
-            # Load weights
-            weights_group = f['model_weights']
-            for layer in model.layers:
-                if layer.name in weights_group:
-                    layer_weights = weights_group[layer.name]
-                    weight_values = []
-                    weight_names = [name.decode('utf-8') 
-                                  for name in layer_weights.attrs['weight_names']]
-                    for name in weight_names:
-                        weight_values.append(layer_weights[name][()])
-                    layer.set_weights(weight_values)
-            
-            return model
+            # Get the model architecture
+            model_config = f.attrs.get('model_config')
+            if model_config is not None:
+                if isinstance(model_config, bytes):
+                    model_config = model_config.decode('utf-8')
+                
+                config_dict = json.loads(model_config)
+                
+                # Function to fix layer configurations
+                def fix_layer_config(layer):
+                    if isinstance(layer, dict):
+                        # Fix DepthwiseConv2D layers
+                        if layer.get('class_name') == 'DepthwiseConv2D':
+                            if 'config' in layer:
+                                layer['config'].pop('groups', None)
+                        
+                        # Process nested structures
+                        for key, value in layer.items():
+                            if isinstance(value, (dict, list)):
+                                fix_layer_config(value)
+                    elif isinstance(layer, list):
+                        for item in layer:
+                            fix_layer_config(item)
+                
+                # Clean up the configuration
+                fix_layer_config(config_dict)
+                
+                # Create new Sequential model
+                model = tf.keras.Sequential()
+                
+                # Add layers from cleaned config
+                for layer_config in config_dict['config']['layers']:
+                    # Skip InputLayer as we'll handle input shape differently
+                    if layer_config['class_name'] == 'InputLayer':
+                        input_shape = layer_config['config']['batch_input_shape'][1:]
+                        model.add(tf.keras.layers.Input(shape=input_shape))
+                        continue
+                    
+                    # Create layer from config
+                    layer = tf.keras.layers.deserialize({
+                        'class_name': layer_config['class_name'],
+                        'config': layer_config['config']
+                    }, custom_objects=custom_objects)
+                    
+                    model.add(layer)
+                
+                # Load weights
+                weights_group = f['model_weights']
+                for layer in model.layers:
+                    if layer.name in weights_group:
+                        layer_weights = weights_group[layer.name]
+                        weight_names = [name.decode('utf-8') for name in 
+                                     layer_weights.attrs['weight_names']]
+                        weight_values = [layer_weights[name][()] for name in weight_names]
+                        layer.set_weights(weight_values)
+                
+                return model
+        
+        st.error("Could not load model configuration from file")
+        return None
             
     except Exception as e:
         st.error(f"Error loading models: {e}")
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
-        return None
+        
+        # Final fallback: try direct loading with custom objects
+        try:
+            st.warning("Attempting direct model loading...")
+            model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
+            return model
+        except Exception as e2:
+            st.error(f"Final fallback failed: {e2}")
+            return None
 
 def validate_image(image_file):
     # Check file size (max 5MB)
