@@ -11,7 +11,6 @@ import tensorflow as tf
 from tensorflow import keras
 from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
-from tensorflow.keras.models import load_model, Sequential
 import cv2
 import numpy as np
 import streamlit as st
