@@ -261,29 +261,63 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # First try loading with a custom object to handle the DepthwiseConv2D issue
-        class CustomDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
-            def __init__(self, *args, **kwargs):
-                if 'groups' in kwargs:
-                    del kwargs['groups']
-                super().__init__(*args, **kwargs)
+        # Create input layers
+        input_shape = (224, 224, 3)
+        inputs = tf.keras.layers.Input(shape=input_shape)
         
-        # Create a minimal model matching Teachable Machine structure
-        model = tf.keras.Sequential([
-            # Input Layer
-            tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
+        # Create a model that matches the structure we're seeing in the error
+        # Using MobileNetV2 as base but with custom configuration
+        base_model = tf.keras.applications.MobileNetV2(
+            input_shape=input_shape,
+            include_top=False,
+            weights=None
+        )
+        
+        # Ensure base model layers are not trainable to match saved weights
+        base_model.trainable = False
+        
+        # Create our model
+        x = base_model(inputs)
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+        outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+        
+        # Create the model
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        
+        # Print model summary for debugging
+        model.summary(print_fn=lambda x: st.text(x))
+        
+        try:
+            # Try loading the model with custom configuration
+            loaded_model = tf.keras.models.load_model(model_path, compile=False)
+            st.success("Model loaded successfully")
+            return loaded_model
             
-            # Feature Extraction
-            tf.keras.layers.Conv2D(16, (3, 3), padding='same', activation='relu'),
-            tf.keras.layers.MaxPooling2D(2, 2),
+        except Exception as e1:
+            st.warning(f"Direct loading failed: {e1}")
             
-            tf.keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu'),
-            tf.keras.layers.MaxPooling2D(2, 2),
-            
-            # Classification Head
-            tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dense(4, activation='softmax')
-        ])
+            try:
+                # Try loading just the weights
+                model.load_weights(model_path)
+                st.success("Weights loaded successfully")
+                
+                # Test the model
+                test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+                _ = model.predict(test_input, verbose=0)
+                st.success("Model test successful")
+                
+                return model
+                
+            except Exception as e2:
+                st.warning(f"Weight loading failed: {e2}")
+                st.warning("Using model with initialized weights")
+                return model
+    
+    except Exception as e:
+        st.error(f"Error in model creation: {e}")
+        import traceback
+        st.error(f"Detailed error: {traceback.format_exc()}")
+        return None
         
         # Print model summary for debugging
         model.summary(print_fn=lambda x: st.text(x))
