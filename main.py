@@ -264,95 +264,99 @@ def load_models():
         # Define custom objects to handle DepthwiseConv2D properly
         class CustomDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
             def __init__(self, **kwargs):
-                # Remove 'groups' from kwargs if present
-                kwargs.pop('groups', None)
+                kwargs.pop('groups', None)  # Remove groups parameter
                 super().__init__(**kwargs)
             
             def get_config(self):
                 config = super().get_config()
-                config.pop('groups', None)
+                config.pop('groups', None)  # Ensure groups is not in config
                 return config
         
+        # Define custom model class to handle the architecture
+        class CustomModel(tf.keras.Model):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            
+            def call(self, inputs):
+                # Ensure inputs is treated as a single tensor
+                if isinstance(inputs, (list, tuple)):
+                    inputs = inputs[0]
+                return super().call(inputs)
+        
         custom_objects = {
-            'DepthwiseConv2D': CustomDepthwiseConv2D
+            'DepthwiseConv2D': CustomDepthwiseConv2D,
+            'CustomModel': CustomModel
         }
         
-        # Try to load and fix the model
-        with h5py.File(model_path, 'r') as f:
-            # Get the model architecture
-            model_config = f.attrs.get('model_config')
-            if model_config is not None:
-                if isinstance(model_config, bytes):
-                    model_config = model_config.decode('utf-8')
-                
-                config_dict = json.loads(model_config)
-                
-                # Function to fix layer configurations
-                def fix_layer_config(layer):
-                    if isinstance(layer, dict):
-                        # Fix DepthwiseConv2D layers
-                        if layer.get('class_name') == 'DepthwiseConv2D':
-                            if 'config' in layer:
-                                layer['config'].pop('groups', None)
+        try:
+            # Try loading with custom objects
+            model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
+            
+            # Create a new model that wraps the loaded model to ensure single input
+            input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
+            x = model(input_layer)
+            wrapped_model = tf.keras.Model(inputs=input_layer, outputs=x)
+            
+            # Test the model with dummy data
+            dummy_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+            _ = wrapped_model.predict(dummy_input, verbose=0)
+            
+            return wrapped_model
+            
+        except Exception as e1:
+            st.warning(f"Direct loading failed: {e1}")
+            
+            # Try loading and rebuilding the model
+            with h5py.File(model_path, 'r') as f:
+                model_config = f.attrs.get('model_config')
+                if model_config is not None:
+                    if isinstance(model_config, bytes):
+                        model_config = model_config.decode('utf-8')
+                    
+                    config = json.loads(model_config)
+                    
+                    # Create a new model with proper input handling
+                    input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
+                    x = input_layer
+                    
+                    # Add the layers
+                    for layer_config in config['config']['layers']:
+                        if layer_config['class_name'] == 'InputLayer':
+                            continue
                         
-                        # Process nested structures
-                        for key, value in layer.items():
-                            if isinstance(value, (dict, list)):
-                                fix_layer_config(value)
-                    elif isinstance(layer, list):
-                        for item in layer:
-                            fix_layer_config(item)
-                
-                # Clean up the configuration
-                fix_layer_config(config_dict)
-                
-                # Create new Sequential model
-                model = tf.keras.Sequential()
-                
-                # Add layers from cleaned config
-                for layer_config in config_dict['config']['layers']:
-                    # Skip InputLayer as we'll handle input shape differently
-                    if layer_config['class_name'] == 'InputLayer':
-                        input_shape = layer_config['config']['batch_input_shape'][1:]
-                        model.add(tf.keras.layers.Input(shape=input_shape))
-                        continue
+                        # Clean up layer config
+                        if layer_config['class_name'] == 'DepthwiseConv2D':
+                            layer_config['config'].pop('groups', None)
+                        
+                        layer = tf.keras.layers.deserialize({
+                            'class_name': layer_config['class_name'],
+                            'config': layer_config['config']
+                        }, custom_objects=custom_objects)
+                        
+                        x = layer(x)
                     
-                    # Create layer from config
-                    layer = tf.keras.layers.deserialize({
-                        'class_name': layer_config['class_name'],
-                        'config': layer_config['config']
-                    }, custom_objects=custom_objects)
+                    # Create the model
+                    model = tf.keras.Model(inputs=input_layer, outputs=x)
                     
-                    model.add(layer)
-                
-                # Load weights
-                weights_group = f['model_weights']
-                for layer in model.layers:
-                    if layer.name in weights_group:
-                        layer_weights = weights_group[layer.name]
-                        weight_names = [name.decode('utf-8') for name in 
-                                     layer_weights.attrs['weight_names']]
-                        weight_values = [layer_weights[name][()] for name in weight_names]
-                        layer.set_weights(weight_values)
-                
-                return model
-        
-        st.error("Could not load model configuration from file")
-        return None
+                    # Load weights
+                    weights_group = f['model_weights']
+                    for layer in model.layers[1:]:  # Skip input layer
+                        if layer.name in weights_group:
+                            weight_names = [name.decode('utf-8') for name in 
+                                         weights_group[layer.name].attrs['weight_names']]
+                            weight_values = [weights_group[layer.name][name][()] 
+                                          for name in weight_names]
+                            layer.set_weights(weight_values)
+                    
+                    return model
+            
+            raise ValueError("Could not load or rebuild model")
             
     except Exception as e:
         st.error(f"Error loading models: {e}")
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
-        
-        # Final fallback: try direct loading with custom objects
-        try:
-            st.warning("Attempting direct model loading...")
-            model = tf.keras.models.load_model(model_path, compile=False, custom_objects=custom_objects)
-            return model
-        except Exception as e2:
-            st.error(f"Final fallback failed: {e2}")
-            return None
+        return None
 
 def validate_image(image_file):
     # Check file size (max 5MB)
@@ -452,19 +456,32 @@ def main():
                 
                 # Predict using the model
                 try:
-                    # Convert to float32 for better compatibility
+                    # Ensure input is float32 and properly shaped
                     img_processed = img_processed.astype('float32')
+                    if len(img_processed.shape) == 3:
+                        img_processed = np.expand_dims(img_processed, axis=0)
                     
                     # Use model in inference mode
                     with tf.device('/CPU:0'):  # Force CPU usage for inference
+                        # Ensure we're passing a single tensor
                         prediction = model_eval.predict(img_processed, verbose=0)
+                        if isinstance(prediction, (list, tuple)):
+                            prediction = prediction[0]  # Take first output if multiple
                     
                     index = np.argmax(prediction)
                     class_name = class_names[index]
                     confidence_score = prediction[0][index]
                     confidence_percent = confidence_score * 100
+                    
+                    # Log prediction details for debugging
+                    st.debug(f"Prediction shape: {prediction.shape}")
+                    st.debug(f"Class index: {index}")
+                    st.debug(f"Confidence: {confidence_percent:.2f}%")
+                    
                 except Exception as e:
                     st.error(f"Error saat melakukan prediksi: {str(e)}")
+                    import traceback
+                    st.error(f"Detailed error: {traceback.format_exc()}")
                     return
                 
                 # Display results based on prediction
