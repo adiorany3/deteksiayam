@@ -261,29 +261,44 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Create a model that matches the exact saved structure
-        # First sequential block - Feature extraction
-        feature_extractor = tf.keras.Sequential([
-            tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
-            tf.keras.layers.Rescaling(scale=1./255),
-            tf.keras.layers.Conv2D(32, 3, strides=2, padding='same'),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Activation('relu')
-        ], name='sequential_1')
+        # Load the pre-trained MobileNetV2 model
+        base_model = tf.keras.applications.MobileNetV2(
+            input_shape=(224, 224, 3),
+            include_top=False,
+            weights=None,
+            alpha=1.0
+        )
         
-        # Second sequential block - Classification
-        classifier = tf.keras.Sequential([
-            tf.keras.layers.GlobalAveragePooling2D(),
-            tf.keras.layers.Dense(4, activation='softmax')
-        ], name='sequential_3')
-        
-        # Combine the blocks
+        # Create the complete model matching the saved structure
         inputs = tf.keras.Input(shape=(224, 224, 3))
-        x = feature_extractor(inputs)
-        outputs = classifier(x)
+        x = base_model(inputs)
+        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+        x = tf.keras.layers.Dense(100, name='dense_Dense1')(x)
+        outputs = tf.keras.layers.Dense(4, name='dense_Dense2', activation='softmax')(x)
         
-        # Create the final model
-        model = tf.keras.Model(inputs=inputs, outputs=outputs, name='chicken_disease_model')
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        
+        # Print model summary for debugging
+        model.summary(print_fn=lambda x: st.text(x))
+        
+        try:
+            # Try to load the model weights
+            model.load_weights(model_path)
+            st.success("Model weights loaded successfully")
+            
+            # Test the model
+            test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+            prediction = model.predict(test_input, verbose=0)
+            st.write("Test prediction shape:", prediction.shape)
+            st.write("Test prediction values:", prediction[0])
+            st.success("Model test successful")
+            
+            return model
+            
+        except Exception as e:
+            st.error(f"Weight loading failed: {e}")
+            st.error(f"Detailed error: {traceback.format_exc()}")
+            return None
         
         # Print model summary for debugging
         model.summary(print_fn=lambda x: st.text(x))
