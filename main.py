@@ -261,23 +261,26 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Create input layers
-        input_shape = (224, 224, 3)
-        inputs = tf.keras.layers.Input(shape=input_shape)
+        # Create input layer
+        inputs = tf.keras.layers.Input(shape=(224, 224, 3))
         
-        # Create a model that matches the structure we're seeing in the error
-        # Using MobileNetV2 as base but with custom configuration
-        base_model = tf.keras.applications.MobileNetV2(
-            input_shape=input_shape,
-            include_top=False,
-            weights=None
-        )
+        # Create a simplified model that matches the saved weights structure
+        x = tf.keras.layers.Conv2D(16, (3, 3), padding='same', use_bias=False)(inputs)
+        x = tf.keras.layers.BatchNormalization()(x)
+        x = tf.keras.layers.ReLU()(x)
+        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
         
-        # Ensure base model layers are not trainable to match saved weights
-        base_model.trainable = False
+        x = tf.keras.layers.Conv2D(32, (3, 3), padding='same')(x)
+        x = tf.keras.layers.BatchNormalization()(x)
+        x = tf.keras.layers.ReLU()(x)
+        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
         
-        # Create our model
-        x = base_model(inputs)
+        x = tf.keras.layers.Conv2D(64, (3, 3), padding='same')(x)
+        x = tf.keras.layers.BatchNormalization()(x)
+        x = tf.keras.layers.ReLU()(x)
+        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
+        
+        # Global Average Pooling and Dense layers
         x = tf.keras.layers.GlobalAveragePooling2D()(x)
         outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
         
@@ -288,72 +291,21 @@ def load_models():
         model.summary(print_fn=lambda x: st.text(x))
         
         try:
-            # Try loading the model with custom configuration
-            loaded_model = tf.keras.models.load_model(model_path, compile=False)
-            st.success("Model loaded successfully")
-            return loaded_model
+            # Load the model weights
+            model.load_weights(model_path)
+            st.success("Weights loaded successfully")
             
-        except Exception as e1:
-            st.warning(f"Direct loading failed: {e1}")
+            # Test the model
+            test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+            _ = model.predict(test_input, verbose=0)
+            st.success("Model test successful")
             
-            try:
-                # Try loading just the weights
-                model.load_weights(model_path)
-                st.success("Weights loaded successfully")
-                
-                # Test the model
-                test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
-                _ = model.predict(test_input, verbose=0)
-                st.success("Model test successful")
-                
-                return model
-                
-            except Exception as e2:
-                st.warning(f"Weight loading failed: {e2}")
-                st.warning("Using model with initialized weights")
-                return model
-    
-    except Exception as e:
-        st.error(f"Error in model creation: {e}")
-        import traceback
-        st.error(f"Detailed error: {traceback.format_exc()}")
-        return None
-        
-        # Print model summary for debugging
-        model.summary(print_fn=lambda x: st.text(x))
-        
-        try:
-            # Try loading the model directly
-            custom_objects = {
-                'DepthwiseConv2D': CustomDepthwiseConv2D
-            }
-            loaded_model = tf.keras.models.load_model(
-                model_path,
-                custom_objects=custom_objects,
-                compile=False
-            )
-            st.success("Model loaded successfully")
-            return loaded_model
+            return model
             
-        except Exception as e1:
-            st.warning(f"Direct loading failed: {e1}")
-            
-            try:
-                # Try loading just the weights to our simplified model
-                model.load_weights(model_path)
-                st.success("Weights loaded successfully")
-                
-                # Test the model
-                test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
-                _ = model.predict(test_input, verbose=0)
-                st.success("Model test successful")
-                
-                return model
-                
-            except Exception as e2:
-                st.warning(f"Weight loading failed: {e2}")
-                st.warning("Using model with initialized weights")
-                return model
+        except Exception as e:
+            st.warning(f"Weight loading failed: {e}")
+            st.warning("Using model with initialized weights")
+            return model
     
     except Exception as e:
         st.error(f"Error in model creation: {e}")
