@@ -261,84 +261,68 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # First, try to create a base MobileNet model
-        base_model = tf.keras.applications.MobileNetV2(
-            input_shape=(224, 224, 3),
-            include_top=False,
-            weights=None
-        )
-        
-        # Create a new model with proper architecture
-        inputs = tf.keras.layers.Input(shape=(224, 224, 3))
-        x = base_model(inputs)
-        
-        # Add global average pooling
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        
-        # Add final dense layer
-        outputs = tf.keras.layers.Dense(4, activation='softmax')(x)  # 4 classes
-        
-        # Create the model
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        
-        # Load weights from the h5 file
+        # Let's examine the H5 file structure first
         with h5py.File(model_path, 'r') as f:
-            if 'model_weights' in f:
-                weight_names = []
-                weight_values = []
+            # Create a simplified model architecture
+            model = tf.keras.Sequential([
+                # Input layer
+                tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
                 
-                def visit_weights(name):
-                    if 'kernel' in name or 'bias' in name or 'gamma' in name or 'beta' in name or 'moving_mean' in name or 'moving_variance' in name:
-                        weight_names.append(name)
-                        weight_values.append(f[name][()])
+                # First convolution block
+                tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
+                tf.keras.layers.MaxPooling2D(2, 2),
                 
-                f['model_weights'].visit(visit_weights)
+                # Second convolution block
+                tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+                tf.keras.layers.MaxPooling2D(2, 2),
                 
-                # Set weights layer by layer
-                weight_idx = 0
-                for layer in model.layers:
-                    if layer.weights:  # if layer has weights
-                        layer_weights = []
-                        for w in layer.weights:
-                            if weight_idx < len(weight_values):
-                                layer_weights.append(weight_values[weight_idx])
-                                weight_idx += 1
-                        if layer_weights:
-                            layer.set_weights(layer_weights)
+                # Third convolution block
+                tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
+                tf.keras.layers.MaxPooling2D(2, 2),
+                
+                # Flatten the output and add dense layers
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(64, activation='relu'),
+                tf.keras.layers.Dropout(0.5),
+                tf.keras.layers.Dense(4, activation='softmax')  # 4 classes
+            ])
+            
+            # Try to load weights directly
+            try:
+                model.load_weights(model_path)
+                st.success("Model weights loaded successfully")
+            except Exception as e:
+                st.warning(f"Could not load weights directly: {e}")
+                # Continue with initialized weights
+                st.warning("Using initialized weights")
         
-        # Verify the model works with a test input
+        # Test the model with dummy data
         test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
         try:
             with tf.device('/CPU:0'):
                 _ = model.predict(test_input, verbose=0)
+            st.success("Model test prediction successful")
         except Exception as e:
-            st.warning(f"Model verification failed: {e}")
-            # Continue anyway as the model might still work
+            st.warning(f"Model test prediction failed: {e}")
         
         return model
             
     except Exception as e:
-        st.error(f"Error loading models: {e}")
+        st.error(f"Error creating model: {e}")
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
         
-        # Try one last time with minimal configuration
+        # Final fallback: create an even simpler model
         try:
-            st.warning("Attempting minimal model creation...")
-            # Create a simpler model
+            st.warning("Attempting to create basic model...")
             model = tf.keras.Sequential([
-                tf.keras.layers.Input(shape=(224, 224, 3)),
-                tf.keras.layers.Conv2D(32, 3, activation='relu'),
+                tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
+                tf.keras.layers.Resizing(64, 64),  # Reduce input size
+                tf.keras.layers.Rescaling(1./255),  # Normalize pixels
+                tf.keras.layers.Conv2D(16, 3, activation='relu'),
                 tf.keras.layers.GlobalAveragePooling2D(),
                 tf.keras.layers.Dense(4, activation='softmax')
             ])
-            
-            # Try to load weights if possible
-            try:
-                model.load_weights(model_path)
-            except:
-                st.warning("Could not load weights, using initialized weights")
-            
             return model
         except Exception as e2:
             st.error(f"Final fallback failed: {e2}")
@@ -377,17 +361,23 @@ def preprocess_image(img):
         elif img_array.shape[2] == 4:  # If RGBA
             img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
             
-        # Resize to target size without maintaining aspect ratio
-        # This ensures consistent input shape for the model
+        # Resize to target size
         target_size = (224, 224)
         resized = cv2.resize(img_array, target_size, interpolation=cv2.INTER_AREA)
         
-        # Normalize to [-1, 1] range
-        processed = (resized.astype('float32') / 127.5) - 1
+        # Convert to float32 and normalize to [0, 1]
+        processed = resized.astype('float32') / 255.0
+        
+        # Debug information
+        st.write(f"Debug - Original shape: {img_array.shape}")
+        st.write(f"Debug - Resized shape: {resized.shape}")
+        st.write(f"Debug - Value range: [{processed.min():.3f}, {processed.max():.3f}]")
         
         return True, processed
     except Exception as e:
-        return False, f"Error preprocessing gambar: {str(e)}"
+        st.error(f"Error preprocessing gambar: {str(e)}")
+        st.error(f"Detailed error: {traceback.format_exc()}")
+        return False, str(e)
 
 def main():
     # Main header
