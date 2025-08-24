@@ -6,7 +6,9 @@ import os
 import json
 import tempfile
 import traceback
+import numpy as np
 import tensorflow as tf
+from tensorflow import keras
 from keras.models import load_model
 from streamlit_extras.add_vertical_space import add_vertical_space
 import cv2
@@ -259,77 +261,78 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Open the model file to modify its configuration
-        with h5py.File(model_path, 'r') as f:
-            model_config = f.attrs.get('model_config')
-            if model_config is not None:
-                # Handle both string and bytes configurations
-                if isinstance(model_config, bytes):
-                    config_str = model_config.decode('utf-8')
-                else:
-                    config_str = model_config
-                
-                try:
-                    config_dict = json.loads(config_str)
-                except json.JSONDecodeError as je:
-                    st.warning(f"Error parsing model configuration: {je}")
-                    # Try loading the model directly as fallback
-                    return load_model(model_path, compile=False)
-                
-                # Function to remove 'groups' parameter from layer configs
-                def remove_groups_param(config):
-                    if isinstance(config, dict):
-                        if 'config' in config:
-                            layer_config = config['config']
-                            if isinstance(layer_config, dict):
-                                # Remove 'groups' parameter if it exists
-                                layer_config.pop('groups', None)
-                        # Recursively process nested configurations
-                        for key, value in config.items():
-                            if isinstance(value, (dict, list)):
-                                remove_groups_param(value)
-                    elif isinstance(config, list):
-                        for item in config:
-                            if isinstance(item, (dict, list)):
-                                remove_groups_param(item)
-                
-                # Clean the configuration
-                remove_groups_param(config_dict)
-                
-                # Save the modified configuration to a temporary file
-                temp_model_path = os.path.join(tempfile.gettempdir(), 'temp_model.h5')
-                with h5py.File(temp_model_path, 'w') as temp_f:
-                    # Copy all attributes and datasets from original file
-                    for key, value in f.attrs.items():
-                        if key == 'model_config':
-                            # Save the modified config
-                            temp_f.attrs['model_config'] = json.dumps(config_dict).encode('utf-8')
-                        else:
-                            temp_f.attrs[key] = value
+        # Create a custom loading function that forces sequential processing
+        def load_sequential_model(model_path):
+            with h5py.File(model_path, 'r') as f:
+                # Get model configuration
+                model_config = f.attrs.get('model_config')
+                if model_config is not None:
+                    if isinstance(model_config, bytes):
+                        config_str = model_config.decode('utf-8')
+                    else:
+                        config_str = model_config
                     
-                    # Copy the weights and other datasets
-                    f.copy('model_weights', temp_f)
+                    config = json.loads(config_str)
                     
-                try:
-                    # Load the model from the temporary file
-                    model_eval = load_model(temp_model_path, compile=False)
-                    return model_eval
-                finally:
-                    # Clean up the temporary file
-                    try:
-                        os.remove(temp_model_path)
-                    except:
-                        pass
+                    # Create a sequential model
+                    model = tf.keras.Sequential()
+                    
+                    # Add an input layer with the correct shape
+                    model.add(tf.keras.layers.InputLayer(input_shape=(224, 224, 3)))
+                    
+                    # Extract and add layers sequentially
+                    if 'layers' in config:
+                        for layer_config in config['layers']:
+                            if layer_config['class_name'] == 'InputLayer':
+                                continue  # Skip input layer as we already added it
+                            
+                            # Handle DepthwiseConv2D layers
+                            if layer_config['class_name'] == 'DepthwiseConv2D':
+                                layer_config['config'].pop('groups', None)
+                            
+                            # Create and add the layer
+                            layer = tf.keras.layers.deserialize({
+                                'class_name': layer_config['class_name'],
+                                'config': layer_config['config']
+                            })
+                            model.add(layer)
+                    
+                    # Load weights
+                    weights_group = f['model_weights']
+                    for layer in model.layers:
+                        if layer.name in weights_group:
+                            weight_names = [name.decode('utf-8') for name in 
+                                         weights_group[layer.name].attrs['weight_names']]
+                            weight_values = [weights_group[layer.name][weight_name][()] 
+                                          for weight_name in weight_names]
+                            layer.set_weights(weight_values)
+                    
+                    return model
             
-        # Fallback: try loading the original model if no configuration was found
-        model_eval = load_model(model_path, compile=False)
+            raise ValueError("Could not load model configuration")
+        
+        # Try to load the model with our custom function
+        model_eval = load_sequential_model(model_path)
+        
+        # Verify the model can process input
+        test_input = tf.zeros((1, 224, 224, 3))
+        _ = model_eval(test_input, training=False)
+        
         return model_eval
         
     except Exception as e:
         st.error(f"Error loading models: {e}")
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
-        return None
+        
+        # Final fallback: try loading with minimal configuration
+        try:
+            st.warning("Attempting to load model with minimal configuration...")
+            model = tf.keras.models.load_model(model_path, compile=False, custom_objects={})
+            return model
+        except Exception as e2:
+            st.error(f"Final fallback failed: {e2}")
+            return None
 
 def validate_image(image_file):
     # Check file size (max 5MB)
