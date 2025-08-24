@@ -261,31 +261,49 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Create input layer
-        inputs = tf.keras.layers.Input(shape=(224, 224, 3))
+        # Create a model that matches the exact saved structure
+        # First sequential block - Feature extraction
+        feature_extractor = tf.keras.Sequential([
+            tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
+            tf.keras.layers.Rescaling(scale=1./255),
+            tf.keras.layers.Conv2D(32, 3, strides=2, padding='same'),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Activation('relu')
+        ], name='sequential_1')
         
-        # Create a simplified model that matches the saved weights structure
-        x = tf.keras.layers.Conv2D(16, (3, 3), padding='same', use_bias=False)(inputs)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.ReLU()(x)
-        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
+        # Second sequential block - Classification
+        classifier = tf.keras.Sequential([
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dense(4, activation='softmax')
+        ], name='sequential_3')
         
-        x = tf.keras.layers.Conv2D(32, (3, 3), padding='same')(x)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.ReLU()(x)
-        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
+        # Combine the blocks
+        inputs = tf.keras.Input(shape=(224, 224, 3))
+        x = feature_extractor(inputs)
+        outputs = classifier(x)
         
-        x = tf.keras.layers.Conv2D(64, (3, 3), padding='same')(x)
-        x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.ReLU()(x)
-        x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))(x)
+        # Create the final model
+        model = tf.keras.Model(inputs=inputs, outputs=outputs, name='chicken_disease_model')
         
-        # Global Average Pooling and Dense layers
-        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-        outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+        # Print model summary for debugging
+        model.summary(print_fn=lambda x: st.text(x))
         
-        # Create the model
-        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        try:
+            # Load the model weights
+            model.load_weights(model_path)
+            st.success("Weights loaded successfully")
+            
+            # Test the model
+            test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+            _ = model.predict(test_input, verbose=0)
+            st.success("Model test successful")
+            
+            return model
+            
+        except Exception as e:
+            st.warning(f"Weight loading failed: {e}")
+            st.warning("Using model with initialized weights")
+            return model
         
         # Print model summary for debugging
         model.summary(print_fn=lambda x: st.text(x))
