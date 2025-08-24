@@ -261,40 +261,43 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Let's examine the H5 file structure first
+        # Try to load and examine the model structure
         with h5py.File(model_path, 'r') as f:
-            # Create a simplified model architecture
+            # Print model structure for debugging
+            st.write("Model structure:", list(f.keys()))
+            if 'model_weights' in f:
+                st.write("Model weights structure:", list(f['model_weights'].keys()))
+            
+            # Create a Teachable Machine compatible model
             model = tf.keras.Sequential([
-                # Input layer
+                # Input Layer - Teachable Machine expects 224x224x3 images
                 tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
                 
-                # First convolution block
-                tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same'),
-                tf.keras.layers.MaxPooling2D(2, 2),
+                # Feature Extraction - Using MobileNet architecture
+                tf.keras.applications.MobileNetV2(
+                    input_shape=(224, 224, 3),
+                    include_top=False,
+                    weights=None
+                ),
                 
-                # Second convolution block
-                tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-                tf.keras.layers.MaxPooling2D(2, 2),
-                
-                # Third convolution block
-                tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'),
-                tf.keras.layers.MaxPooling2D(2, 2),
-                
-                # Flatten the output and add dense layers
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(64, activation='relu'),
-                tf.keras.layers.Dropout(0.5),
+                # Classification Head
+                tf.keras.layers.GlobalAveragePooling2D(),
                 tf.keras.layers.Dense(4, activation='softmax')  # 4 classes
             ])
             
-            # Try to load weights directly
+            # Try to load the weights
             try:
                 model.load_weights(model_path)
                 st.success("Model weights loaded successfully")
             except Exception as e:
                 st.warning(f"Could not load weights directly: {e}")
-                # Continue with initialized weights
-                st.warning("Using initialized weights")
+                try:
+                    # Alternative loading method
+                    model = tf.keras.models.load_model(model_path, compile=False)
+                    st.success("Model loaded using alternative method")
+                except Exception as e2:
+                    st.warning(f"Alternative loading failed: {e2}")
+                    st.warning("Using initialized weights")
         
         # Test the model with dummy data
         test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
@@ -304,6 +307,14 @@ def load_models():
             st.success("Model test prediction successful")
         except Exception as e:
             st.warning(f"Model test prediction failed: {e}")
+            
+            # If prediction fails, try to rebuild the model
+            try:
+                outputs = model.predict(test_input, verbose=0)
+                st.write("Prediction shape:", outputs.shape)
+                st.write("Prediction sample:", outputs[0][:5])  # Show first 5 values
+            except Exception as e_pred:
+                st.error(f"Detailed prediction error: {e_pred}")
         
         return model
             
@@ -312,14 +323,18 @@ def load_models():
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
         
-        # Final fallback: create an even simpler model
+        # Final fallback: create a basic model that matches Teachable Machine structure
         try:
-            st.warning("Attempting to create basic model...")
+            st.warning("Creating basic Teachable Machine compatible model...")
+            base_model = tf.keras.applications.MobileNetV2(
+                input_shape=(224, 224, 3),
+                include_top=False,
+                weights='imagenet'  # Use pretrained weights as fallback
+            )
+            base_model.trainable = False  # Freeze the base model
+            
             model = tf.keras.Sequential([
-                tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
-                tf.keras.layers.Resizing(64, 64),  # Reduce input size
-                tf.keras.layers.Rescaling(1./255),  # Normalize pixels
-                tf.keras.layers.Conv2D(16, 3, activation='relu'),
+                base_model,
                 tf.keras.layers.GlobalAveragePooling2D(),
                 tf.keras.layers.Dense(4, activation='softmax')
             ])
@@ -355,23 +370,31 @@ def preprocess_image(img):
         # Convert PIL Image to numpy array
         img_array = np.array(img)
         
+        # Debug original image
+        st.write(f"Debug - Original shape: {img_array.shape}")
+        st.write(f"Debug - Original type: {img_array.dtype}")
+        
         # Ensure the image is RGB
         if len(img_array.shape) == 2:  # If grayscale
             img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
         elif img_array.shape[2] == 4:  # If RGBA
             img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
             
-        # Resize to target size
+        # Resize to target size (Teachable Machine uses 224x224)
         target_size = (224, 224)
         resized = cv2.resize(img_array, target_size, interpolation=cv2.INTER_AREA)
         
-        # Convert to float32 and normalize to [0, 1]
-        processed = resized.astype('float32') / 255.0
+        # Convert to float32 and normalize (Teachable Machine expects values in [-1, 1])
+        processed = (resized.astype('float32') / 127.5) - 1
         
-        # Debug information
-        st.write(f"Debug - Original shape: {img_array.shape}")
+        # Debug preprocessing steps
         st.write(f"Debug - Resized shape: {resized.shape}")
+        st.write(f"Debug - Processed type: {processed.dtype}")
         st.write(f"Debug - Value range: [{processed.min():.3f}, {processed.max():.3f}]")
+        
+        # Ensure the shape is correct
+        if processed.shape != (224, 224, 3):
+            raise ValueError(f"Unexpected shape after preprocessing: {processed.shape}")
         
         return True, processed
     except Exception as e:
