@@ -261,12 +261,23 @@ def load_models():
     import traceback  # Import traceback inside the function
     model_path = "keras_model.h5"  # Define model path
     
+    # Define a custom DepthwiseConv2D class that handles the 'groups' parameter
+    class CustomDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
+        def __init__(self, *args, **kwargs):
+            # Remove 'groups' parameter if present
+            if 'groups' in kwargs:
+                del kwargs['groups']
+            super().__init__(*args, **kwargs)
+    
     try:
         # Instead of trying to recreate the model structure, load directly with custom objects
         try:
-            # First try loading the model directly
-            model = tf.keras.models.load_model(model_path, compile=False)
-            st.success("Full model loaded successfully")
+            # First try loading the model directly with custom objects
+            custom_objects = {
+                'DepthwiseConv2D': CustomDepthwiseConv2D
+            }
+            model = tf.keras.models.load_model(model_path, custom_objects=custom_objects, compile=False)
+            st.success("Full model loaded successfully with custom objects")
             
             # Test the model
             test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
