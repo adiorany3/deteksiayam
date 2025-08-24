@@ -261,90 +261,68 @@ def load_models():
     model_path = "keras_model.h5"  # Define model path
     
     try:
-        # Try to load and examine the model structure
-        with h5py.File(model_path, 'r') as f:
-            # Print model structure for debugging
-            st.write("Model structure:", list(f.keys()))
-            if 'model_weights' in f:
-                st.write("Model weights structure:", list(f['model_weights'].keys()))
-            
-            # Create a Teachable Machine compatible model
-            model = tf.keras.Sequential([
-                # Input Layer - Teachable Machine expects 224x224x3 images
-                tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
-                
-                # Feature Extraction - Using MobileNet architecture
-                tf.keras.applications.MobileNetV2(
-                    input_shape=(224, 224, 3),
-                    include_top=False,
-                    weights=None
-                ),
-                
-                # Classification Head
-                tf.keras.layers.GlobalAveragePooling2D(),
-                tf.keras.layers.Dense(4, activation='softmax')  # 4 classes
-            ])
-            
-            # Try to load the weights
-            try:
-                model.load_weights(model_path)
-                st.success("Model weights loaded successfully")
-            except Exception as e:
-                st.warning(f"Could not load weights directly: {e}")
-                try:
-                    # Alternative loading method
-                    model = tf.keras.models.load_model(model_path, compile=False)
-                    st.success("Model loaded using alternative method")
-                except Exception as e2:
-                    st.warning(f"Alternative loading failed: {e2}")
-                    st.warning("Using initialized weights")
+        # First try loading with a custom object to handle the DepthwiseConv2D issue
+        class CustomDepthwiseConv2D(tf.keras.layers.DepthwiseConv2D):
+            def __init__(self, *args, **kwargs):
+                if 'groups' in kwargs:
+                    del kwargs['groups']
+                super().__init__(*args, **kwargs)
         
-        # Test the model with dummy data
-        test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+        # Create a minimal model matching Teachable Machine structure
+        model = tf.keras.Sequential([
+            # Input Layer
+            tf.keras.layers.InputLayer(input_shape=(224, 224, 3)),
+            
+            # Feature Extraction
+            tf.keras.layers.Conv2D(16, (3, 3), padding='same', activation='relu'),
+            tf.keras.layers.MaxPooling2D(2, 2),
+            
+            tf.keras.layers.Conv2D(32, (3, 3), padding='same', activation='relu'),
+            tf.keras.layers.MaxPooling2D(2, 2),
+            
+            # Classification Head
+            tf.keras.layers.GlobalAveragePooling2D(),
+            tf.keras.layers.Dense(4, activation='softmax')
+        ])
+        
+        # Print model summary for debugging
+        model.summary(print_fn=lambda x: st.text(x))
+        
         try:
-            with tf.device('/CPU:0'):
-                _ = model.predict(test_input, verbose=0)
-            st.success("Model test prediction successful")
-        except Exception as e:
-            st.warning(f"Model test prediction failed: {e}")
-            
-            # If prediction fails, try to rebuild the model
-            try:
-                outputs = model.predict(test_input, verbose=0)
-                st.write("Prediction shape:", outputs.shape)
-                st.write("Prediction sample:", outputs[0][:5])  # Show first 5 values
-            except Exception as e_pred:
-                st.error(f"Detailed prediction error: {e_pred}")
-        
-        return model
-            
-    except Exception as e:
-        st.error(f"Error creating model: {e}")
-        import traceback
-        st.error(f"Detailed error: {traceback.format_exc()}")
-        
-        # Final fallback: create a basic model that matches Teachable Machine structure
-        try:
-            st.warning("Creating basic Teachable Machine compatible model...")
-            base_model = tf.keras.applications.MobileNetV2(
-                input_shape=(224, 224, 3),
-                include_top=False,
-                weights='imagenet'  # Use pretrained weights as fallback
+            # Try loading the model directly
+            custom_objects = {
+                'DepthwiseConv2D': CustomDepthwiseConv2D
+            }
+            loaded_model = tf.keras.models.load_model(
+                model_path,
+                custom_objects=custom_objects,
+                compile=False
             )
-            base_model.trainable = False  # Freeze the base model
+            st.success("Model loaded successfully")
+            return loaded_model
             
-            model = tf.keras.Sequential([
-                base_model,
-                tf.keras.layers.GlobalAveragePooling2D(),
-                tf.keras.layers.Dense(4, activation='softmax')
-            ])
-            return model
-        except Exception as e2:
-            st.error(f"Final fallback failed: {e2}")
-            return None
+        except Exception as e1:
+            st.warning(f"Direct loading failed: {e1}")
             
+            try:
+                # Try loading just the weights to our simplified model
+                model.load_weights(model_path)
+                st.success("Weights loaded successfully")
+                
+                # Test the model
+                test_input = np.zeros((1, 224, 224, 3), dtype=np.float32)
+                _ = model.predict(test_input, verbose=0)
+                st.success("Model test successful")
+                
+                return model
+                
+            except Exception as e2:
+                st.warning(f"Weight loading failed: {e2}")
+                st.warning("Using model with initialized weights")
+                return model
+    
     except Exception as e:
-        st.error(f"Error loading models: {e}")
+        st.error(f"Error in model creation: {e}")
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
         return None
