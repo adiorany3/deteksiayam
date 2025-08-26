@@ -580,9 +580,7 @@ def main():
                     # Display gauge chart
                     st.plotly_chart(create_gauge_chart(confidence_percent), use_container_width=True)  # Updated parameter
                 else:
-                    # Show the selected class from debug info
-                    class_name = class_names[index].strip() if index < len(class_names) else f"Class {index}"
-                    st.warning(f"Debug - Selected class: {index} ({class_name})")
+                    st.warning("Sesuaikan posisi gambar, untuk mendapatkan hasil pembacaan terbaik")
 
     # Footer with LinkedIn profile link and improved styling
     st.markdown("""
