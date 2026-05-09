@@ -2,12 +2,22 @@ import os
 import numpy as np
 import streamlit as st
 from PIL import Image
+import tensorflow as tf
 from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import DepthwiseConv2D
 import plotly.graph_objects as go
 
 MODEL_PATH = "keras_model.h5"
 LABELS_PATH = "labels.txt"
 IMAGE_SIZE = (224, 224)
+
+
+class FixedDepthwiseConv2D(DepthwiseConv2D):
+    @classmethod
+    def from_config(cls, config):
+        config.pop("groups", None)
+        return super().from_config(config)
+
 
 st.set_page_config(
     page_title="Deteksi Penyakit Ayam",
@@ -23,10 +33,17 @@ def load_ai_model():
         return None
 
     try:
-        model = load_model(MODEL_PATH, compile=False)
+        model = load_model(
+            MODEL_PATH,
+            compile=False,
+            custom_objects={
+                "DepthwiseConv2D": FixedDepthwiseConv2D
+            }
+        )
         return model
     except Exception as e:
         st.error("Model gagal dimuat.")
+        st.write("TensorFlow version:", tf.__version__)
         st.exception(e)
         return None
 
@@ -42,7 +59,6 @@ def load_labels():
             if not line:
                 continue
 
-            # Format Teachable Machine biasanya: "0 Sehat"
             parts = line.split(" ", 1)
             if len(parts) == 2 and parts[0].isdigit():
                 labels.append(parts[1])
@@ -58,8 +74,8 @@ def preprocess_image(image: Image.Image):
 
     image_array = np.asarray(image, dtype=np.float32)
     image_array = (image_array / 127.5) - 1
-
     image_array = np.expand_dims(image_array, axis=0)
+
     return image_array
 
 
@@ -69,7 +85,6 @@ def predict_image(model, image, labels):
 
     index = int(np.argmax(prediction))
     confidence = float(prediction[index]) * 100
-
     label = labels[index] if index < len(labels) else f"Kelas {index}"
 
     return label, confidence, prediction
@@ -141,9 +156,10 @@ def main():
         st.stop()
 
     with st.sidebar:
-        st.header("Informasi")
-        st.write("Model: Teachable Machine / Keras")
-        st.write("Ukuran input: 224 x 224")
+        st.header("Informasi Model")
+        st.write("TensorFlow:", tf.__version__)
+        st.write("Model:", MODEL_PATH)
+        st.write("Input:", "224 x 224")
         st.write("Kelas deteksi:")
         for label in labels:
             st.write(f"- {label}")
@@ -169,6 +185,8 @@ def main():
         else:
             image_file = st.camera_input("Ambil foto kotoran ayam")
 
+        image = None
+
         if image_file is not None:
             image = Image.open(image_file)
             st.image(image, caption="Gambar yang dianalisis", use_container_width=True)
@@ -176,7 +194,7 @@ def main():
     with col2:
         st.subheader("Hasil Deteksi")
 
-        if image_file is None:
+        if image_file is None or image is None:
             st.info("Silakan upload atau ambil gambar terlebih dahulu.")
             return
 
