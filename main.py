@@ -1,22 +1,16 @@
 import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+
 import numpy as np
 import streamlit as st
 from PIL import Image
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.layers import DepthwiseConv2D
 import plotly.graph_objects as go
 
 MODEL_PATH = "keras_model.h5"
 LABELS_PATH = "labels.txt"
 IMAGE_SIZE = (224, 224)
-
-
-class FixedDepthwiseConv2D(DepthwiseConv2D):
-    @classmethod
-    def from_config(cls, config):
-        config.pop("groups", None)
-        return super().from_config(config)
 
 
 st.set_page_config(
@@ -33,17 +27,13 @@ def load_ai_model():
         return None
 
     try:
-        model = load_model(
-            MODEL_PATH,
-            compile=False,
-            custom_objects={
-                "DepthwiseConv2D": FixedDepthwiseConv2D
-            }
-        )
+        model = load_model(MODEL_PATH, compile=False)
         return model
+
     except Exception as e:
         st.error("Model gagal dimuat.")
         st.write("TensorFlow version:", tf.__version__)
+        st.write("TF_USE_LEGACY_KERAS:", os.environ.get("TF_USE_LEGACY_KERAS"))
         st.exception(e)
         return None
 
