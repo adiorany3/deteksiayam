@@ -1,11 +1,6 @@
-tensorflow
-keras
+tensorflow==2.15.1
 streamlit
-streamlit-extras
-streamlit-webrtc
-opencv-python-headless
 pillow
-numpy
-scipy
+numpy==1.26.4
+plotly
 h5py
-streamlit-lottie
