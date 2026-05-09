@@ -1,6 +1,6 @@
-tensorflow==2.15.1
-streamlit
-pillow
+tensorflow==2.15.0
+streamlit==1.35.0
+pillow==10.4.0
 numpy==1.26.4
-plotly
-h5py
+plotly==5.22.0
+h5py==3.11.0
